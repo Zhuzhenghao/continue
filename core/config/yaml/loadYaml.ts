@@ -3,6 +3,7 @@ import {
   BLOCK_TYPES,
   ConfigResult,
   ConfigValidationError,
+  ensureBuiltinModels,
   isAssistantUnrolledNonNullable,
   mergeConfigYamlRequestOptions,
   mergeUnrolledAssistants,
@@ -31,6 +32,7 @@ import { getBaseToolDefinitions } from "../../tools";
 import { getCleanUriPath } from "../../util/uri";
 import { loadConfigContextProviders } from "../loadContextProviders";
 import { getAllDotContinueDefinitionFiles } from "../loadLocalAssistants";
+import { shihuoConfig } from "../shihuo";
 import { unrollLocalYamlBlocks } from "./loadLocalYamlBlocks";
 import { LocalPlatformClient } from "./LocalPlatformClient";
 import { llmsFromModelConfig } from "./models";
@@ -129,6 +131,15 @@ async function loadConfigYaml(options: {
     config = unrollResult.config;
     if (unrollResult.errors) {
       errors.push(...unrollResult.errors);
+    }
+  }
+
+  // Ensure Shihuo builtin models are present (without overriding user models)
+  if (config) {
+    try {
+      config = ensureBuiltinModels(config, shihuoConfig.models ?? []);
+    } catch (e) {
+      // Non-fatal; proceed without merge if anything goes wrong
     }
   }
 

@@ -18,7 +18,7 @@
   "homepage": "https://continue.dev",
   "qna": "https://github.com/continuedev/continue/issues/new/choose",
   "license": "Apache-2.0",
-  "displayName": "Continue - open-source AI code agent",
+  "displayName": "Continue - by Shihuo",
   "pricing": "Free",
   "description": "The leading open-source AI code agent",
   "publisher": "Continue",
@@ -604,7 +604,7 @@
       "activitybar": [
         {
           "id": "continue",
-          "title": "Continue",
+          "title": "Continue - by Shihuo",
           "icon": "media/sidebar-icon.png"
         }
       ],
@@ -621,7 +621,7 @@
         {
           "type": "webview",
           "id": "continue.continueGUIView",
-          "name": "Continue",
+          "name": "Continue - by Shihuo",
           "icon": "media/sidebar-icon.png",
           "visibility": "visible"
         }

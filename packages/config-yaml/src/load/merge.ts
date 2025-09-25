@@ -43,6 +43,26 @@ export function mergeUnrolledAssistants(
   };
 }
 
+export function ensureBuiltinModels(
+  userConfig: AssistantUnrolled,
+  builtinModels: any[],
+): AssistantUnrolled {
+  // Filter out user models that have the same name as builtin models
+  const userModelsWithoutConflicts = (userConfig.models ?? []).filter(
+    (model) =>
+      !model?.name ||
+      !builtinModels.some((builtin) => builtin?.name === model.name),
+  );
+
+  // Add all builtin models (they will override any user models with the same name)
+  const result: AssistantUnrolled = {
+    ...userConfig,
+    models: [...userModelsWithoutConflicts, ...builtinModels],
+  };
+
+  return result;
+}
+
 export function mergeConfigYamlRequestOptions(
   base: RequestOptions | undefined,
   global: RequestOptions | undefined,

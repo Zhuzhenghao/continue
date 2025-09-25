@@ -180,8 +180,12 @@ const getCommandsMap: (
 
   return {
     "continue.acceptDiff": async (newFileUri?: string, streamId?: string) => {
-      captureCommandTelemetry("acceptDiff");
-      void processDiff(
+      console.log("=== AcceptDiff Debug Info ===");
+      console.log("newFileUri:", newFileUri);
+      console.log("streamId:", streamId);
+
+      console.log("Processing diff with action: accept");
+      const generatedLines = await processDiff(
         "accept",
         sidebar,
         ide,
@@ -190,10 +194,41 @@ const getCommandsMap: (
         newFileUri,
         streamId,
       );
+
+      // 构建简化的acceptDiff统计信息
+      const diffMetrics = {
+        filepath: newFileUri || "unknown",
+        streamId: streamId || "unknown",
+        timestamp: new Date().toISOString(),
+        action: "accept",
+        // 统计模型生成的代码行数和字符数
+        generatedLines: generatedLines || 0,
+        generatedCharacters: await calculateGeneratedCharacters(
+          newFileUri,
+          streamId,
+          verticalDiffManager,
+        ),
+      };
+
+      console.log("AcceptDiff event recorded:", diffMetrics);
+
+      console.log(
+        "Sending acceptDiff telemetry with diff metrics:",
+        diffMetrics,
+      );
+      captureCommandTelemetry("acceptDiff", diffMetrics);
+      console.log("=== AcceptDiff Debug Info End ===");
     },
 
     "continue.rejectDiff": async (newFileUri?: string, streamId?: string) => {
+      console.log("=== RejectDiff Debug Info ===");
+      console.log("newFileUri:", newFileUri);
+      console.log("streamId:", streamId);
+
+      console.log("Sending rejectDiff telemetry");
       captureCommandTelemetry("rejectDiff");
+
+      console.log("Processing diff with action: reject");
       void processDiff(
         "reject",
         sidebar,
@@ -203,6 +238,7 @@ const getCommandsMap: (
         newFileUri,
         streamId,
       );
+      console.log("=== RejectDiff Debug Info End ===");
     },
     "continue.acceptVerticalDiffBlock": (fileUri?: string, index?: number) => {
       captureCommandTelemetry("acceptVerticalDiffBlock");
@@ -951,4 +987,30 @@ export function registerAllCommands(
       vscode.commands.registerCommand(command, callback),
     );
   }
+}
+
+/**
+ * 计算生成的代码字符数
+ */
+async function calculateGeneratedCharacters(
+  newFileUri?: string,
+  streamId?: string,
+  verticalDiffManager?: VerticalDiffManager,
+): Promise<number> {
+  try {
+    // 获取VerticalDiffManager中的logDiffs来计算生成的字符数
+    const logDiffs = verticalDiffManager?.logDiffs;
+    if (logDiffs && logDiffs.length > 0) {
+      let generatedCharacters = 0;
+      for (const diffLine of logDiffs) {
+        if (diffLine.type === "new") {
+          generatedCharacters += diffLine.line.length;
+        }
+      }
+      return generatedCharacters;
+    }
+  } catch (error) {
+    console.warn("Failed to calculate generated characters:", error);
+  }
+  return 0;
 }

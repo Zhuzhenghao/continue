@@ -20,6 +20,7 @@ import {
 import { Logger } from "../util/Logger.js";
 
 import {
+  AuthType,
   ControlPlaneSessionInfo,
   HubSessionInfo,
   isOnPremSession,
@@ -122,7 +123,19 @@ export class ControlPlaneClient {
 
   async getAccessToken(): Promise<string | undefined> {
     const sessionInfo = await this.sessionInfoPromise;
-    return isOnPremSession(sessionInfo) ? undefined : sessionInfo?.accessToken;
+    if (isOnPremSession(sessionInfo)) {
+      return undefined;
+    }
+
+    // For Hub access, we need to use Continue session token
+    // Shihuo session token cannot access Continue Hub APIs
+    if (sessionInfo?.AUTH_TYPE === AuthType.ShihuoSSO) {
+      // For now, return undefined to avoid using Shihuo token for Hub access
+      // This means when only Shihuo session exists, Hub access will be disabled
+      return undefined;
+    }
+
+    return sessionInfo?.accessToken;
   }
 
   private async request(path: string, init: RequestInit): Promise<Response> {

@@ -571,12 +571,14 @@ export class VsCodeExtension {
         const sessionInfo = await getControlPlaneSessionInfo(true, false);
         void this.core.invoke("didChangeControlPlaneSessionInfo", {
           sessionInfo,
+          sessionType: "continue",
         });
       } else if (e.provider.id === "shihuo-sso") {
         // Handle Shihuo SSO session changes
         const sessionInfo = await getShihuoSessionInfo(true);
         void this.core.invoke("didChangeControlPlaneSessionInfo", {
           sessionInfo,
+          sessionType: "shihuo",
         });
       } else {
         void vscode.commands.executeCommand(

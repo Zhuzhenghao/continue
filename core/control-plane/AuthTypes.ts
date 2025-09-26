@@ -31,10 +31,6 @@ export type ControlPlaneSessionInfo =
 export interface MultiSessionInfo {
   continueSession?: ControlPlaneSessionInfo;
   shihuoSession?: ControlPlaneSessionInfo;
-  activeSessionType?:
-    | AuthType.WorkOsProd
-    | AuthType.WorkOsStaging
-    | AuthType.ShihuoSSO;
 }
 
 export function isOnPremSession(
@@ -65,19 +61,15 @@ export function isHubSession(
 export function getActiveSession(
   multiSession: MultiSessionInfo,
 ): ControlPlaneSessionInfo | undefined {
-  if (!multiSession.activeSessionType) {
-    return undefined;
+  // Always prioritize Continue session for Hub access
+  if (
+    multiSession.continueSession &&
+    multiSession.continueSession.AUTH_TYPE !== AuthType.OnPrem
+  ) {
+    return multiSession.continueSession;
   }
 
-  switch (multiSession.activeSessionType) {
-    case AuthType.WorkOsProd:
-    case AuthType.WorkOsStaging:
-      return multiSession.continueSession;
-    case AuthType.ShihuoSSO:
-      return multiSession.shihuoSession;
-    default:
-      return undefined;
-  }
+  return undefined;
 }
 
 export enum AuthType {

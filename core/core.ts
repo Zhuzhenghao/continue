@@ -1085,6 +1085,7 @@ export class Core {
       });
       await this.configHandler.updateControlPlaneSessionInfo(
         msg.data.sessionInfo,
+        msg.data.sessionType,
       );
     });
 

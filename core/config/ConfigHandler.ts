@@ -402,32 +402,37 @@ export class ConfigHandler {
   // Session change: refresh session and cascade refresh from the top
   async updateControlPlaneSessionInfo(
     sessionInfo: ControlPlaneSessionInfo | undefined,
+    sessionType?: "continue" | "shihuo",
   ) {
     const currentSession = await this.controlPlaneClient.sessionInfoPromise;
     const newSession = sessionInfo;
 
     let reload = false;
-    let isLogin = false;
-    if (newSession) {
-      if (currentSession) {
-        if (
-          newSession.AUTH_TYPE !== AuthType.OnPrem &&
-          currentSession.AUTH_TYPE !== AuthType.OnPrem
-        ) {
-          if (newSession.account.id !== currentSession.account.id) {
-            // session id change (non-on-prem)
-            reload = true;
+
+    // Only trigger config reload for Continue sessions, not Shihuo sessions
+    if (sessionType === "continue") {
+      let isLogin = false;
+      if (newSession) {
+        if (currentSession) {
+          if (
+            newSession.AUTH_TYPE !== AuthType.OnPrem &&
+            currentSession.AUTH_TYPE !== AuthType.OnPrem
+          ) {
+            if (newSession.account.id !== currentSession.account.id) {
+              // session id change (non-on-prem)
+              reload = true;
+            }
           }
+        } else {
+          // log in
+          reload = true;
+          isLogin = true;
         }
       } else {
-        // log in
-        reload = true;
-        isLogin = true;
-      }
-    } else {
-      if (currentSession) {
-        // log out
-        reload = true;
+        if (currentSession) {
+          // log out
+          reload = true;
+        }
       }
     }
 

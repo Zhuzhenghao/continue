@@ -340,7 +340,10 @@ export type ToCoreFromIdeOrWebviewProtocol = {
   "controlPlane/getCreditStatus": [undefined, CreditStatus | null];
   isItemTooBig: [{ item: ContextItemWithId }, boolean];
   didChangeControlPlaneSessionInfo: [
-    { sessionInfo: ControlPlaneSessionInfo | undefined },
+    {
+      sessionInfo: ControlPlaneSessionInfo | undefined;
+      sessionType?: "continue" | "shihuo";
+    },
     void,
   ];
   "process/markAsBackgrounded": [{ toolCallId: string }, void];

@@ -34,12 +34,6 @@ interface AuthContextType {
   logoutShihuo: () => void;
   login: (useOnboarding: boolean) => Promise<boolean>;
   loginWithShihuo: () => Promise<boolean>;
-  switchToSession: (
-    sessionType:
-      | AuthType.WorkOsProd
-      | AuthType.WorkOsStaging
-      | AuthType.ShihuoSSO,
-  ) => void;
   selectedProfile: ProfileDescription | null;
   profiles: ProfileDescription[] | null;
   refreshProfiles: (reason?: string) => Promise<void>;
@@ -53,20 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
-  // Multi-session management
   const [multiSession, setMultiSession] = useState<MultiSessionInfo>({
     continueSession: undefined,
     shihuoSession: undefined,
-    activeSessionType: undefined,
   });
 
-  // Current active session (computed from multiSession)
   const session = getActiveSession(multiSession);
 
-  // Orgs
   const orgs = useAppSelector((store) => store.profiles.organizations);
 
-  // Profiles
   const currentOrg = useAppSelector(selectCurrentOrg);
   const selectedProfile = useAppSelector(selectSelectedProfile);
 
@@ -86,10 +75,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setMultiSession((prev) => ({
         ...prev,
         continueSession,
-        activeSessionType:
-          continueSession?.AUTH_TYPE === AuthType.OnPrem
-            ? undefined
-            : continueSession?.AUTH_TYPE,
       }));
 
       return true;
@@ -116,10 +101,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setMultiSession((prev) => ({
             ...prev,
             shihuoSession,
-            activeSessionType:
-              shihuoSession?.AUTH_TYPE === AuthType.OnPrem
-                ? undefined
-                : shihuoSession?.AUTH_TYPE,
           }));
 
           resolve(true);
@@ -136,7 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setMultiSession({
       continueSession: undefined,
       shihuoSession: undefined,
-      activeSessionType: undefined,
     });
   };
 
@@ -145,7 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setMultiSession((prev) => ({
       ...prev,
       continueSession: undefined,
-      activeSessionType: prev.shihuoSession ? AuthType.ShihuoSSO : undefined,
     }));
   };
 
@@ -154,23 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setMultiSession((prev) => ({
       ...prev,
       shihuoSession: undefined,
-      activeSessionType:
-        prev.continueSession &&
-        prev.continueSession.AUTH_TYPE !== AuthType.OnPrem
-          ? prev.continueSession.AUTH_TYPE
-          : undefined,
-    }));
-  };
-
-  const switchToSession = (
-    sessionType:
-      | AuthType.WorkOsProd
-      | AuthType.WorkOsStaging
-      | AuthType.ShihuoSSO,
-  ) => {
-    setMultiSession((prev) => ({
-      ...prev,
-      activeSessionType: sessionType,
     }));
   };
 
@@ -197,13 +159,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setMultiSession({
         continueSession,
         shihuoSession,
-        activeSessionType:
-          (continueSession?.AUTH_TYPE !== AuthType.OnPrem
-            ? continueSession?.AUTH_TYPE
-            : undefined) ||
-          (shihuoSession?.AUTH_TYPE !== AuthType.OnPrem
-            ? shihuoSession?.AUTH_TYPE
-            : undefined),
       });
     }
     void init();
@@ -218,7 +173,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setMultiSession((prev) => ({
             ...prev,
             shihuoSession: sessionInfo,
-            activeSessionType: prev.activeSessionType || AuthType.ShihuoSSO,
           }));
         } else if (
           sessionInfo.AUTH_TYPE === AuthType.WorkOsProd ||
@@ -227,7 +181,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setMultiSession((prev) => ({
             ...prev,
             continueSession: sessionInfo,
-            activeSessionType: prev.activeSessionType || sessionInfo.AUTH_TYPE,
           }));
         }
       }
@@ -263,7 +216,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logoutShihuo,
         login,
         loginWithShihuo,
-        switchToSession,
         selectedProfile,
         profiles: currentOrg?.profiles ?? [],
         refreshProfiles,

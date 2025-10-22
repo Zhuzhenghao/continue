@@ -2,6 +2,7 @@ import { ConfigHandler } from "../config/ConfigHandler.js";
 import { IDE, ILLM } from "../index.js";
 import OpenAI from "../llm/llms/OpenAI.js";
 import { DEFAULT_AUTOCOMPLETE_OPTS } from "../util/parameters.js";
+import { Telemetry } from "../util/posthog.js";
 
 import { shouldCompleteMultiline } from "./classification/shouldCompleteMultiline.js";
 import { ContextRetrievalService } from "./context/ContextRetrievalService.js";
@@ -162,6 +163,20 @@ export class CompletionProvider {
       }
       const startTime = Date.now();
 
+      // 触发autocomplete时立即上报telemetry事件
+      const triggeredEvent = {
+        completionId: input.completionId,
+        filepath: input.filepath,
+        isUntitledFile: input.isUntitledFile,
+        position: {
+          line: input.pos.line,
+          character: input.pos.character,
+        },
+        timestamp: new Date().toISOString(),
+        force: force || false,
+      };
+      void Telemetry.capture("autocomplete_triggered", triggeredEvent);
+
       const llm = await this._prepareLlm();
       if (!llm) {
         return undefined;
@@ -229,6 +244,24 @@ export class CompletionProvider {
         const multiline =
           !helper.options.transform || shouldCompleteMultiline(helper);
 
+        // 记录LLM请求开始
+        const requestStartEvent = {
+          completionId: input.completionId,
+          filepath: input.filepath,
+          modelProvider: llm.underlyingProviderName,
+          modelName: llm.model,
+          promptLength: prompt.length,
+          prefixLength: prefix.length,
+          suffixLength: suffix.length,
+          multiline: multiline,
+          timestamp: new Date().toISOString(),
+        };
+
+        void Telemetry.capture(
+          "autocomplete_llm_request_start",
+          requestStartEvent,
+        );
+
         const completionStream =
           this.completionStreamer.streamCompletionWithFilters(
             token,
@@ -245,8 +278,37 @@ export class CompletionProvider {
           completion += update;
         }
 
+        // 记录LLM请求成功完成
+        const requestSuccessEvent = {
+          completionId: input.completionId,
+          filepath: input.filepath,
+          modelProvider: llm.underlyingProviderName,
+          modelName: llm.model,
+          completionLength: completion.length,
+          processingTime: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+        };
+        void Telemetry.capture(
+          "autocomplete_llm_request_success",
+          requestSuccessEvent,
+        );
+
         // Don't postprocess if aborted
         if (token.aborted) {
+          // 记录autocomplete被取消的事件
+          const cancelledEvent = {
+            completionId: input.completionId,
+            filepath: input.filepath,
+            isUntitledFile: input.isUntitledFile,
+            position: {
+              line: input.pos.line,
+              character: input.pos.character,
+            },
+            timestamp: new Date().toISOString(),
+            reason: "aborted_during_generation",
+            processingTime: Date.now() - startTime,
+          };
+          void Telemetry.capture("autocomplete_cancelled", cancelledEvent);
           return undefined;
         }
 
@@ -263,6 +325,23 @@ export class CompletionProvider {
       }
 
       if (!completion) {
+        const emptyEvent = {
+          completionId: input.completionId,
+          filepath: input.filepath,
+          isUntitledFile: input.isUntitledFile,
+          position: {
+            line: input.pos.line,
+            character: input.pos.character,
+          },
+          timestamp: new Date().toISOString(),
+          reason: "empty_completion",
+          processingTime: Date.now() - startTime,
+          modelProvider: llm.underlyingProviderName,
+          modelName: llm.model,
+          completionLength: 0,
+          cacheHit,
+        };
+        void Telemetry.capture("autocomplete_cancelled", emptyEvent);
         return undefined;
       }
 
@@ -304,6 +383,36 @@ export class CompletionProvider {
 
       return outcome;
     } catch (e: any) {
+      // 记录LLM请求失败
+      const requestFailedEvent = {
+        completionId: input.completionId,
+        filepath: input.filepath,
+        errorMessage: e.message || "Unknown error",
+        errorType: e.constructor?.name || "Unknown",
+        errorStatus: e.status || e.code || "N/A",
+        timestamp: new Date().toISOString(),
+      };
+
+      void Telemetry.capture(
+        "autocomplete_llm_request_failed",
+        requestFailedEvent,
+      );
+
+      const errorCancelledEvent = {
+        completionId: input.completionId,
+        filepath: input.filepath,
+        isUntitledFile: input.isUntitledFile,
+        position: {
+          line: input.pos.line,
+          character: input.pos.character,
+        },
+        timestamp: new Date().toISOString(),
+        reason: "error_during_processing",
+        errorMessage: e.message || "Unknown error",
+        errorType: e.constructor?.name || "Unknown",
+        errorStatus: e.status || e.code || "N/A",
+      };
+      void Telemetry.capture("autocomplete_cancelled", errorCancelledEvent);
       this.onError(e);
     } finally {
       this.loggingService.deleteAbortController(input.completionId);

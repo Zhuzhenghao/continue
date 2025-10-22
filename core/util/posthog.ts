@@ -91,8 +91,8 @@ export class Telemetry {
         return;
       }
 
-      // 发送到PostHog
-      Telemetry.client?.capture(payload);
+      // 不发送到PostHog
+      // Telemetry.client?.capture(payload);
 
       // 同时发送到Shihuo
       if (Telemetry.shihuoService) {

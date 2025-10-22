@@ -33,6 +33,44 @@
 - `gui_tool_call_decision` - GUI工具调用决策
 - `gui_tool_call_outcome` - GUI工具调用结果
 
+#### 3. **LLM Complete请求统计（新增）**
+
+- `complete_request_stats` - LLM Complete请求详细统计
+  - `model`: 模型名称
+  - `provider`: 模型提供商
+  - **Token统计**:
+    - `promptTokens`: 输入提示词token数
+    - `generatedTokens`: 生成内容token数
+    - `thinkingTokens`: 思考过程token数
+    - `totalTokens`: 总token数
+  - **字符长度统计**:
+    - `promptLength`: 输入提示词字符长度
+    - `completionLength`: 生成内容字符长度
+    - `thinkingLength`: 思考过程字符长度
+  - **时间统计**:
+    - `totalTime`: 总处理时间 (毫秒)
+    - `totalTimeSeconds`: 总处理时间 (秒)
+  - `timestamp`: 时间戳
+
+#### 4. **GUI Telemetry统计（新增）**
+
+- `gui_telemetry_stats` - GUI层LLM交互统计
+  - `interactionId`: 交互唯一标识
+  - `type`: 交互类型
+  - `result`: 交互结果 (Success/Error/Cancelled)
+  - **性能指标**:
+    - `totalTime`: 总时间
+    - `toFirstToken`: 首token时间
+    - `tokensPerSecond`: 每秒token数
+  - **Token统计**:
+    - `promptTokens`: 输入token数
+    - `generatedTokens`: 生成token数
+    - `thinkingTokens`: 思考token数
+  - **其他**:
+    - `costBreakdown`: 成本分析
+    - `provider`: 模型提供商
+    - `model`: 模型名称
+
 ### 🤖 **自动补全事件**
 
 #### 1. **自动补全事件（增强版）**
@@ -61,6 +99,64 @@
     - `uniqueId`: 唯一标识符
     - `timestamp`: 时间戳
     - `filepath`: 文件路径
+
+#### 2. **自动补全生命周期事件（新增）**
+
+- `autocomplete_triggered` - 自动补全触发事件
+
+  - `completionId`: 补全请求唯一标识
+  - `filepath`: 文件路径
+  - `position`: 光标位置 (line, character)
+  - `force`: 是否强制触发
+  - `timestamp`: 时间戳
+
+- `autocomplete_llm_request_start` - LLM请求开始事件
+
+  - `completionId`: 补全请求唯一标识
+  - `modelProvider`: 模型提供商
+  - `modelName`: 模型名称
+  - `promptLength`: 提示词长度
+  - `suffixLength`: 后缀长度
+  - `multiline`: 是否多行补全
+  - `timestamp`: 时间戳
+
+- `autocomplete_llm_request_success` - LLM请求成功事件
+
+  - `completionId`: 补全请求唯一标识
+  - `modelProvider`: 模型提供商
+  - `modelName`: 模型名称
+  - `completionLength`: 补全内容长度
+  - `processingTime`: 处理时间 (毫秒)
+  - `timestamp`: 时间戳
+
+- `autocomplete_llm_request_failed` - LLM请求失败事件
+
+  - `completionId`: 补全请求唯一标识
+  - `errorMessage`: 错误信息
+  - `errorType`: 错误类型
+  - `errorStatus`: 错误状态码
+  - `timestamp`: 时间戳
+
+- `autocomplete_cancelled` - 自动补全取消事件
+  - `completionId`: 补全请求唯一标识
+  - `reason`: 取消原因
+    - `"aborted_during_generation"`: 生成过程中被取消
+    - `"error_during_processing"`: 处理过程中出错
+    - `"empty_completion"`: 模型产出为空（或后处理为空）
+  - `processingTime`: 处理时间 (毫秒)
+  - `timestamp`: 时间戳
+
+##### 前置检查与不发起请求的情况（重要）
+
+以下情况发生在“发起 LLM 请求之前”，因此不会上报 `autocomplete_llm_request_start`，也不会真正调用模型接口：
+
+- 缓存命中（`cacheHit: true`）：直接返回缓存补全，完全不发起请求。
+- 防抖（`reason: "debounced"`）：`AutocompleteDebouncer.delayAndShouldDebounce` 判定应延后/取消本次触发。
+- 预过滤阻止（`reason: "prefilter_blocked"`）：`shouldPrefilter` 命中禁用逻辑（例如 `disable`、禁用文件匹配、空 Untitled 文件、配置文件本身等）。
+- 安全忽略（`reason: "security_concern"`）：`isSecurityConcern` 命中内置安全敏感清单（如 `.env`、密钥/证书、`secrets/` 目录等）。
+- 无可用 LLM（`reason: "no_llm_available"`）：模型未配置/未选择，或（如 mistral）空 key。
+
+只有在未命中上述前置条件且缓存未命中时，才会继续进行上下文收集、渲染提示词，并发起 LLM 请求（随后才可能出现 `aborted_during_generation`、`error_during_processing`、或 `empty_completion`）。
 
 #### 2. **手动输入统计事件**
 
@@ -256,61 +352,12 @@ interface SlashCommandEvent {
 await Telemetry.capture("eventName", properties);
 ```
 
-### 2. **双重上报**
+### 2. **数据上报**
 
-- **PostHog**: 原有的分析平台
-- **Shihuo**: 新增的内部统计平台
+- **Shihuo**: 内部统计平台（主要）
 
 ### 3. **批量处理**
 
 - 每5分钟自动上报一次
 - 达到10个事件时立即上报
 - 失败时自动重试3次
-
-## 📊 **事件统计**
-
-### 按类别统计
-
-- **系统事件**: 6个（扩展生命周期2个 + 错误处理4个）
-- **聊天事件**: 9个（聊天交互7个 + 工具调用2个）
-- **自动补全事件**: 1个（已增强）
-- **编辑事件**: 3个
-- **配置事件**: 4个
-- **文档事件**: 4个
-- **UI事件**: 5个
-- **性能事件**: 1个
-- **检索错误事件**: 8个
-- **命令事件**: 30个（VSCode命令26个 + CLI命令1个 + IntelliJ命令2个 + 其他命令1个）
-
-### 总计
-
-约 **69+** 个不同的事件类型，涵盖了Continue的所有主要功能模块。
-
-## ⚠️ **文档验证结果**
-
-### ✅ **已验证正确的事件**
-
-- **自动补全事件**：`autocomplete`（已增强，包含原interaction字段）
-- **聊天事件**：`chat`, `useSlashCommand`, `gui_stream_error`, `userInput`, `step run`, `apiRequest`, `sessionStart`
-- **工具调用事件**：`gui_tool_call_decision`, `gui_tool_call_outcome`
-- **编辑事件**：`quickEditSelection`, `nextEditOutcome`
-- **配置事件**：`config_reload`, `VSCode Quick Actions Settings Changed`, `context_provider_get_context_items`, `useContextProvider`
-- **文档事件**：`docs_pages_crawled`, `add_docs_config`, `add_docs_gui`, `rebuild_index_clicked`
-- **UI事件**：`$pageview`, `toggle_bookmarked_slash_command`, `gui_use_active_file_enter`, `Onboarding Step`, `onboardingSelection`
-- **性能事件**：`tokens_generated_batch`
-- **检索错误事件**：8个reranker相关事件
-- **错误处理事件**：`extension_error_caught`, `webview_protocol_error`, `core_messenger_error`, `stream_premature_close_error`
-- **命令事件**：30个VSCode/CLI/IntelliJ命令事件
-
-### ❌ **需要修正的事件**
-
-- `install`, `deactivate` - 在代码中未找到实际使用（已从文档中移除）
-- `configValidationError` - 在代码中未找到实际使用（已从文档中移除）
-- `inlineEdit` - 在代码中定义但未找到实际使用（已标注）
-
-### 📊 **事件上报流程验证**
-
-- ✅ 双重上报（PostHog + Shihuo）正确
-- ✅ 批量处理配置正确（5分钟间隔，10个事件触发，3次重试）
-
-这些事件类型确保了Continue能够全面了解用户的使用情况，为产品改进提供数据支持。

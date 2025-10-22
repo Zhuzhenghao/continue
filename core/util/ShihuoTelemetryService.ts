@@ -79,12 +79,6 @@ export class ShihuoTelemetryService {
       console.log("Shihuo telemetry is disabled, skipping event:", event);
       return;
     }
-
-    console.log("=== ShihuoTelemetryService Capture Debug ===");
-    console.log("Capturing event:", event);
-    console.log("Properties:", properties);
-    console.log("DistinctId:", distinctId);
-
     const telemetryEvent: ShihuoTelemetryEvent = {
       event,
       properties,
@@ -96,10 +90,7 @@ export class ShihuoTelemetryService {
       ideType: this.ideInfo?.ideType,
     };
 
-    console.log("Created telemetry event:", telemetryEvent);
     this.eventQueue.push(telemetryEvent);
-    console.log("Event added to queue. Queue length:", this.eventQueue.length);
-    console.log("=== ShihuoTelemetryService Capture Debug End ===");
 
     // 如果队列达到批量大小，立即上报（但在测试环境中跳过实际上报）
     if (
@@ -211,19 +202,12 @@ export class ShihuoTelemetryService {
 
     // 在测试环境中跳过实际上报
     if (process.env.NODE_ENV === "test") {
-      console.log(
-        `Test mode: Would report ${allEventsToReport.length} telemetry events to Shihuo`,
-      );
       return;
     }
 
     try {
       await this.sendReport(allEventsToReport);
-      console.log(
-        `Successfully reported ${allEventsToReport.length} telemetry events to Shihuo`,
-      );
     } catch (error) {
-      console.warn("Failed to report telemetry data to Shihuo:", error);
       // 将失败的事件加入失败队列
       this.failedEvents.push(...allEventsToReport);
 
@@ -232,9 +216,6 @@ export class ShihuoTelemetryService {
       if (this.failedEvents.length > maxFailedEvents) {
         const toDiscard = this.failedEvents.length - maxFailedEvents;
         this.failedEvents.splice(0, toDiscard);
-        console.warn(
-          `Discarded ${toDiscard} old failed events to prevent memory leak`,
-        );
       }
     }
   }
@@ -251,10 +232,6 @@ export class ShihuoTelemetryService {
         return;
       } catch (error) {
         lastError = error as Error;
-        console.warn(
-          `Shihuo telemetry report attempt ${attempt} failed:`,
-          error,
-        );
 
         if (attempt < this.config.retryAttempts) {
           const delay = this.config.retryDelay * attempt;
@@ -263,7 +240,6 @@ export class ShihuoTelemetryService {
       }
     }
 
-    console.error(`All ${this.config.retryAttempts} attempts failed`);
     throw lastError;
   }
 
@@ -569,6 +545,7 @@ export class ShihuoTelemetryService {
         accepted_characters: acceptedCharacters,
         cancelled_lines: cancelledLines,
         cancelled_characters: cancelledCharacters,
+        // 新增：自动补全生命周期统计
       },
       manual_typing: {
         total_characters: totalManualCharacters,

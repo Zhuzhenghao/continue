@@ -35,6 +35,7 @@ import { Logger } from "../util/Logger.js";
 import mergeJson from "../util/merge.js";
 import { renderChatMessage } from "../util/messageContent.js";
 import { isOllamaInstalled } from "../util/ollamaHelper.js";
+import { Telemetry } from "../util/posthog.js";
 import { TokensBatchingService } from "../util/TokensBatchingService.js";
 import { withExponentialBackoff } from "../util/withExponentialBackoff.js";
 
@@ -347,6 +348,7 @@ export abstract class BaseLLM implements ILLM {
     interaction: ILLMInteractionLog | undefined,
     usage: Usage | undefined,
     error?: any,
+    startTime?: number,
   ): InteractionStatus {
     let promptTokens = this.countTokens(prompt);
     let generatedTokens = this.countTokens(completion);
@@ -384,6 +386,28 @@ export abstract class BaseLLM implements ILLM {
         thinkingTokens,
         usage,
       });
+
+      // 计算时间指标
+      const currentTime = Date.now();
+      const totalTime = startTime ? currentTime - startTime : undefined;
+
+      // 记录Complete请求的详细统计信息
+      const completeStatsEvent = {
+        model: model,
+        provider: this.providerName,
+        promptTokens: promptTokens,
+        generatedTokens: generatedTokens,
+        thinkingTokens: thinkingTokens,
+        totalTokens: promptTokens + generatedTokens + thinkingTokens,
+        promptLength: prompt.length,
+        completionLength: completion.length,
+        thinkingLength: thinking?.length || 0,
+        totalTime: totalTime,
+        totalTimeSeconds: totalTime ? (totalTime / 1000).toFixed(2) : undefined,
+        timestamp: new Date().toISOString(),
+      };
+      void Telemetry.capture("complete_request_stats", completeStatsEvent);
+
       return "success";
     } else {
       if (error === "cancel" || error?.name?.includes("AbortError")) {
@@ -857,6 +881,7 @@ export abstract class BaseLLM implements ILLM {
       ? this.logger?.createInteractionLog()
       : undefined;
     let status: InteractionStatus = "in_progress";
+    const startTime = Date.now();
 
     let prompt = pruneRawPromptFromTop(
       completionOptions.model,
@@ -910,6 +935,8 @@ export abstract class BaseLLM implements ILLM {
         undefined,
         interaction,
         undefined,
+        undefined,
+        startTime,
       );
     } catch (e) {
       // Capture completion failures to Sentry
@@ -928,6 +955,7 @@ export abstract class BaseLLM implements ILLM {
         interaction,
         undefined,
         e,
+        startTime,
       );
       throw e;
     } finally {
@@ -940,6 +968,7 @@ export abstract class BaseLLM implements ILLM {
           interaction,
           undefined,
           "cancel",
+          startTime,
         );
       }
     }

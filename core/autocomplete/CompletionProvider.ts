@@ -148,11 +148,44 @@ export class CompletionProvider {
     return options;
   }
 
+  // 辅助函数：计算遥测数据
+  private calculateTelemetryData(
+    llmStartTime: number,
+    firstTokenTime: number | undefined,
+    llm: ILLM,
+    completion: string,
+    prompt: string,
+  ) {
+    const totalTime = Date.now() - llmStartTime;
+    const toFirstToken = firstTokenTime
+      ? firstTokenTime - llmStartTime
+      : undefined;
+    const generatedTokens = llm.countTokens(completion);
+    const promptTokens = llm.countTokens(prompt);
+    const tokensPerSecond =
+      toFirstToken && generatedTokens > 0
+        ? generatedTokens / ((totalTime - toFirstToken) / 1000)
+        : undefined;
+
+    return {
+      totalTime,
+      toFirstToken,
+      generatedTokens,
+      promptTokens,
+      tokensPerSecond,
+    };
+  }
+
   public async provideInlineCompletionItems(
     input: AutocompleteInput,
     token: AbortSignal | undefined,
     force?: boolean,
   ): Promise<AutocompleteOutcome | undefined> {
+    // 在函数级别声明遥测变量，确保在所有作用域中可用
+    let firstTokenTime: number | undefined;
+    let llmStartTime: number | undefined;
+    const startTime = Date.now(); // 提升到函数级别，确保在 catch 中可以访问
+
     try {
       // Create abort signal if not given
       if (!token) {
@@ -161,7 +194,6 @@ export class CompletionProvider {
         );
         token = controller.signal;
       }
-      const startTime = Date.now();
 
       // 触发autocomplete时立即上报telemetry事件
       const triggeredEvent = {
@@ -245,6 +277,7 @@ export class CompletionProvider {
           !helper.options.transform || shouldCompleteMultiline(helper);
 
         // 记录LLM请求开始
+        const llmRequestStartEventTime = Date.now();
         const requestStartEvent = {
           completionId: input.completionId,
           filepath: input.filepath,
@@ -255,12 +288,17 @@ export class CompletionProvider {
           suffixLength: suffix.length,
           multiline: multiline,
           timestamp: new Date().toISOString(),
+          timeSinceTriggered: llmRequestStartEventTime - startTime, // 从请求开始到LLM请求开始的时间
+          timeSinceStart: 0, // LLM刚启动，所以为0
         };
 
         void Telemetry.capture(
           "autocomplete_llm_request_start",
           requestStartEvent,
         );
+
+        // 记录LLM开始时间
+        llmStartTime = Date.now();
 
         const completionStream =
           this.completionStreamer.streamCompletionWithFilters(
@@ -272,21 +310,47 @@ export class CompletionProvider {
             multiline,
             completionOptions,
             helper,
+            (timestamp) => {
+              firstTokenTime = timestamp;
+            },
           );
 
         for await (const update of completionStream) {
+          console.log("update_demo", update);
           completion += update;
         }
 
-        // 记录LLM请求成功完成
+        // 计算遥测数据
+        const {
+          totalTime,
+          toFirstToken,
+          generatedTokens,
+          promptTokens,
+          tokensPerSecond,
+        } = this.calculateTelemetryData(
+          llmStartTime!,
+          firstTokenTime,
+          llm,
+          completion,
+          prompt,
+        );
+
+        // 记录LLM请求成功完成（合并遥测数据）
+        const llmRequestSuccessEventTime = Date.now();
         const requestSuccessEvent = {
           completionId: input.completionId,
           filepath: input.filepath,
           modelProvider: llm.underlyingProviderName,
           modelName: llm.model,
-          completionLength: completion.length,
-          processingTime: Date.now() - startTime,
           timestamp: new Date().toISOString(),
+          // 新增的遥测数据
+          totalTime,
+          toFirstToken,
+          tokensPerSecond,
+          promptTokens,
+          generatedTokens,
+          timeSinceTriggered: llmRequestSuccessEventTime - startTime, // 从请求开始到成功上报的时间
+          timeSinceStart: llmRequestSuccessEventTime - llmStartTime!, // 从LLM开始到成功上报的时间
         };
         void Telemetry.capture(
           "autocomplete_llm_request_success",
@@ -296,6 +360,7 @@ export class CompletionProvider {
         // Don't postprocess if aborted
         if (token.aborted) {
           // 记录autocomplete被取消的事件
+          const cancelledEventTime = Date.now();
           const cancelledEvent = {
             completionId: input.completionId,
             filepath: input.filepath,
@@ -306,9 +371,40 @@ export class CompletionProvider {
             },
             timestamp: new Date().toISOString(),
             reason: "aborted_during_generation",
-            processingTime: Date.now() - startTime,
+            processingTime: cancelledEventTime - startTime,
+            timeSinceTriggered: cancelledEventTime - startTime, // 从请求开始到取消上报的时间
           };
-          void Telemetry.capture("autocomplete_cancelled", cancelledEvent);
+
+          // 合并遥测数据到取消事件中
+          const {
+            totalTime: cancelledTotalTime,
+            toFirstToken: cancelledToFirstToken,
+            generatedTokens: cancelledGeneratedTokens,
+            promptTokens: cancelledPromptTokens,
+            tokensPerSecond: cancelledTokensPerSecond,
+          } = this.calculateTelemetryData(
+            llmStartTime!,
+            firstTokenTime,
+            llm,
+            completion,
+            prompt,
+          );
+
+          // 重新构建取消事件，包含遥测数据
+          const enhancedCancelledEvent = {
+            ...cancelledEvent,
+            totalTime: cancelledTotalTime,
+            toFirstToken: cancelledToFirstToken,
+            tokensPerSecond: cancelledTokensPerSecond,
+            promptTokens: cancelledPromptTokens,
+            generatedTokens: cancelledGeneratedTokens,
+            timeSinceStart: cancelledEventTime - llmStartTime!, // 从LLM开始到取消上报的时间
+          };
+          void Telemetry.capture(
+            "autocomplete_cancelled",
+            enhancedCancelledEvent,
+          );
+
           return undefined;
         }
 
@@ -325,6 +421,7 @@ export class CompletionProvider {
       }
 
       if (!completion) {
+        const emptyEventTime = Date.now();
         const emptyEvent = {
           completionId: input.completionId,
           filepath: input.filepath,
@@ -335,13 +432,44 @@ export class CompletionProvider {
           },
           timestamp: new Date().toISOString(),
           reason: "empty_completion",
-          processingTime: Date.now() - startTime,
+          processingTime: emptyEventTime - startTime,
+          timeSinceTriggered: emptyEventTime - startTime, // 从请求开始到空补全上报的时间
           modelProvider: llm.underlyingProviderName,
           modelName: llm.model,
           completionLength: 0,
           cacheHit,
         };
-        void Telemetry.capture("autocomplete_cancelled", emptyEvent);
+
+        // 合并遥测数据到空补全事件中
+        if (llmStartTime !== undefined) {
+          const {
+            totalTime: emptyTotalTime,
+            toFirstToken: emptyToFirstToken,
+            promptTokens: emptyPromptTokens,
+          } = this.calculateTelemetryData(
+            llmStartTime,
+            firstTokenTime,
+            llm,
+            "",
+            prompt,
+          );
+
+          // 重新构建空补全事件，包含遥测数据
+          const enhancedEmptyEvent = {
+            ...emptyEvent,
+            totalTime: emptyTotalTime,
+            toFirstToken: emptyToFirstToken,
+            tokensPerSecond: undefined, // 空补全没有生成token
+            promptTokens: emptyPromptTokens,
+            generatedTokens: 0,
+            timeSinceStart: emptyEventTime - llmStartTime!, // 从LLM开始到空补全上报的时间
+          };
+          void Telemetry.capture("autocomplete_cancelled", enhancedEmptyEvent);
+        } else {
+          // 如果没有遥测上下文，至少发送基本的空补全事件
+          void Telemetry.capture("autocomplete_cancelled", emptyEvent);
+        }
+
         return undefined;
       }
 
@@ -384,6 +512,7 @@ export class CompletionProvider {
       return outcome;
     } catch (e: any) {
       // 记录LLM请求失败
+      const errorEventTime = Date.now();
       const requestFailedEvent = {
         completionId: input.completionId,
         filepath: input.filepath,
@@ -391,6 +520,7 @@ export class CompletionProvider {
         errorType: e.constructor?.name || "Unknown",
         errorStatus: e.status || e.code || "N/A",
         timestamp: new Date().toISOString(),
+        timeSinceTriggered: errorEventTime - startTime, // 从请求开始到失败上报的时间
       };
 
       void Telemetry.capture(
@@ -411,8 +541,31 @@ export class CompletionProvider {
         errorMessage: e.message || "Unknown error",
         errorType: e.constructor?.name || "Unknown",
         errorStatus: e.status || e.code || "N/A",
+        timeSinceTriggered: errorEventTime - startTime, // 从请求开始到错误取消上报的时间
       };
-      void Telemetry.capture("autocomplete_cancelled", errorCancelledEvent);
+
+      // 发送增强的错误遥测数据
+      if (llmStartTime !== undefined) {
+        const errorTotalTime = Date.now() - llmStartTime;
+        const errorToFirstToken = firstTokenTime
+          ? firstTokenTime - llmStartTime
+          : undefined;
+        const errorPromptTokens = 0; // 错误情况下无法获取llm实例
+        const errorGeneratedTokens = 0; // 错误情况下没有生成内容
+
+        // 重新构建错误事件，包含遥测数据
+        const enhancedErrorEvent = {
+          ...errorCancelledEvent,
+          totalTime: errorTotalTime,
+          toFirstToken: errorToFirstToken,
+          tokensPerSecond: undefined, // 错误情况不计算tokensPerSecond
+          promptTokens: errorPromptTokens,
+          generatedTokens: errorGeneratedTokens,
+          timeSinceStart: errorEventTime - llmStartTime, // 从LLM开始到错误上报的时间
+        };
+        void Telemetry.capture("autocomplete_cancelled", enhancedErrorEvent);
+      }
+
       this.onError(e);
     } finally {
       this.loggingService.deleteAbortController(input.completionId);

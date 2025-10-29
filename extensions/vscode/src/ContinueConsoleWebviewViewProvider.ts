@@ -3,19 +3,11 @@ import { EXTENSION_NAME } from "core/control-plane/env";
 import { LLMLogger } from "core/llm/logger";
 import * as vscode from "vscode";
 
-import { ConsoleTelemetryHandler } from "./telemetry/ConsoleTelemetryHandler";
 import { getExtensionUri, getNonce } from "./util/vscode";
 
 interface FromConsoleView {
   type: "start" | "stop";
   uuid: string;
-  // 扩展字段 - 保持向后兼容
-  messageType?: string;
-  messageId?: string;
-  data?: {
-    eventType: string;
-    eventData: any;
-  };
 }
 
 // Maximum interactions we retain; when we exceed this, we drop the
@@ -50,11 +42,6 @@ export class ContinueConsoleWebviewViewProvider
           uuid: this._currentUuid,
           items: this.getAllItems(),
         });
-      }
-
-      // 扩展功能：处理GUI telemetry统计消息
-      if (ConsoleTelemetryHandler.isGuiTelemetryMessage(message)) {
-        ConsoleTelemetryHandler.handleGuiTelemetryStats(message.data!);
       }
     });
     this._webviewView.onDidDispose(() => {

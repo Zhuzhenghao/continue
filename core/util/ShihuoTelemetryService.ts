@@ -76,7 +76,6 @@ export class ShihuoTelemetryService {
     distinctId: string,
   ) {
     if (!this.config.enabled) {
-      console.log("Shihuo telemetry is disabled, skipping event:", event);
       return;
     }
     const telemetryEvent: ShihuoTelemetryEvent = {
@@ -265,8 +264,6 @@ export class ShihuoTelemetryService {
         summary: eventStats,
       };
 
-      console.log("Shihuo telemetry bizData", bizData);
-
       const params: Record<string, any> = {
         pti: {
           id: "continue_telemetry", // 使用Continue telemetry的标识
@@ -422,109 +419,45 @@ export class ShihuoTelemetryService {
     let inlineEditTotalGeneratedLines = 0;
     let inlineEditTotalGeneratedCharacters = 0;
 
-    console.log("=== AcceptDiff Statistics Debug ===");
-    console.log("Found acceptDiff events:", acceptDiffEvents.length);
-
     acceptDiffEvents.forEach((event, index) => {
-      console.log(`AcceptDiff event ${index + 1}:`, {
-        timestamp: event.timestamp,
-        properties: event.properties,
-      });
-
       // 统计模型生成的代码行数
       if (event.properties.generatedLines !== undefined) {
         acceptDiffTotalGeneratedLines += event.properties.generatedLines;
-        console.log(
-          `Adding ${event.properties.generatedLines} generated lines to total`,
-        );
       }
 
       // 统计模型生成的代码字符数
       if (event.properties.generatedCharacters !== undefined) {
         acceptDiffTotalGeneratedCharacters +=
           event.properties.generatedCharacters;
-        console.log(
-          `Adding ${event.properties.generatedCharacters} generated characters to total`,
-        );
       }
     });
 
-    console.log("AcceptDiff totals:", {
-      totalGeneratedLines: acceptDiffTotalGeneratedLines,
-      totalGeneratedCharacters: acceptDiffTotalGeneratedCharacters,
-    });
-    console.log("=== AcceptDiff Statistics Debug End ===");
-
-    // 统计createfile事件
-    console.log("=== CreateFile Statistics Debug ===");
-    console.log("Found createfile events:", createFileEvents.length);
-
     createFileEvents.forEach((event, index) => {
-      console.log(`CreateFile event ${index + 1}:`, {
-        timestamp: event.timestamp,
-        properties: event.properties,
-      });
-
       // 统计模型生成的代码行数
       if (event.properties.generatedLines !== undefined) {
         createFileTotalGeneratedLines += event.properties.generatedLines;
-        console.log(
-          `Adding ${event.properties.generatedLines} generated lines to total`,
-        );
       }
 
       // 统计模型生成的代码字符数
       if (event.properties.generatedCharacters !== undefined) {
         createFileTotalGeneratedCharacters +=
           event.properties.generatedCharacters;
-        console.log(
-          `Adding ${event.properties.generatedCharacters} generated characters to total`,
-        );
       }
     });
 
-    console.log("CreateFile totals:", {
-      totalGeneratedLines: createFileTotalGeneratedLines,
-      totalGeneratedCharacters: createFileTotalGeneratedCharacters,
-    });
-    console.log("=== CreateFile Statistics Debug End ===");
-
-    // 统计inlineEdit事件
-    console.log("=== InlineEdit Statistics Debug ===");
-    console.log("Found inlineEdit events:", inlineEditEvents.length);
-
     inlineEditEvents.forEach((event, index) => {
-      console.log(`InlineEdit event ${index + 1}:`, {
-        timestamp: event.timestamp,
-        properties: event.properties,
-      });
-
       // 统计模型生成的代码行数
       if (event.properties.expectedGeneratedLines !== undefined) {
         inlineEditTotalGeneratedLines +=
           event.properties.expectedGeneratedLines;
-        console.log(
-          `Adding ${event.properties.expectedGeneratedLines} expected generated lines to total`,
-        );
       }
 
       // 统计模型生成的代码字符数
       if (event.properties.expectedGeneratedCharacters !== undefined) {
         inlineEditTotalGeneratedCharacters +=
           event.properties.expectedGeneratedCharacters;
-        console.log(
-          `Adding ${event.properties.expectedGeneratedCharacters} expected generated characters to total`,
-        );
       }
-
-      console.log(`InlineEdit: ${event.properties.type || "unknown"}`);
     });
-
-    console.log("InlineEdit totals:", {
-      totalGeneratedLines: inlineEditTotalGeneratedLines,
-      totalGeneratedCharacters: inlineEditTotalGeneratedCharacters,
-    });
-    console.log("=== InlineEdit Statistics Debug End ===");
 
     // 计算Agent相关的字符数（从chat事件中提取）
     let agentGeneratedCharacters = 0;

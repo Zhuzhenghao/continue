@@ -82,13 +82,6 @@ export type ToCoreFromIdeOrWebviewProtocol = {
   "history/share": [{ id: string; outputDir?: string }, void];
   "history/clear": [undefined, void];
   "devdata/log": [DevDataLogEvent, void];
-  guiTelemetryStats: [
-    {
-      eventType: string;
-      eventData: any;
-    },
-    void,
-  ];
   "config/addOpenAiKey": [string, void];
   "config/addModel": [
     {

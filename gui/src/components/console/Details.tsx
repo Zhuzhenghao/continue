@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LLMInteraction } from "../../hooks/useLLMLog";
 import useLLMSummary from "../../hooks/useLLMSummary";
-import { useLLMTelemetry } from "../../hooks/useLLMTelemetry";
 import End from "./End";
 import ResultGroup from "./ResultGroup";
 import Start from "./Start";
@@ -52,9 +51,6 @@ export default function Details({ interaction }: DetailsProps) {
   const lastResult = useRef<any>(null);
   const summary = useLLMSummary(interaction);
   const [isAtBottom, setIsAtBottom] = useState(true);
-
-  // 添加telemetry hook来处理LLM交互的统计信息
-  useLLMTelemetry(interaction, summary);
 
   // Handler to check if user is at the bottom
   function handleScroll() {

@@ -128,10 +128,6 @@ export class ManualTypingStatisticsService {
         false, // 不发送给团队
       );
 
-      console.log(
-        `Successfully reported manual typing statistics: ${this.statistics.totalCharactersTyped} chars, ${this.statistics.totalLinesTyped} lines, ${this.statistics.totalKeystrokes} keystrokes`,
-      );
-
       // 上报成功后重置统计数据
       this.resetStatisticsAfterReport();
     } catch (error) {

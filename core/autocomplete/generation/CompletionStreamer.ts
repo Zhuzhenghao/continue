@@ -22,6 +22,7 @@ export class CompletionStreamer {
     multiline: boolean,
     completionOptions: Partial<CompletionOptions> | undefined,
     helper: HelperVars,
+    onFirstToken?: (timestamp: number) => void,
   ) {
     // Full stop means to stop the LLM's generation, instead of just truncating the displayed completion
     const fullStop = () =>
@@ -56,10 +57,18 @@ export class CompletionStreamer {
 
     // LLM
     const generatorWithCancellation = async function* () {
+      let isFirstToken = true;
       for await (const update of generator) {
         if (token.aborted) {
           return;
         }
+
+        // 记录第一个token时间（在LLM原始输出层面）
+        if (isFirstToken && onFirstToken) {
+          onFirstToken(Date.now());
+          isFirstToken = false;
+        }
+
         yield update;
       }
     };

@@ -52,25 +52,6 @@
     - `totalTimeSeconds`: 总处理时间 (秒)
   - `timestamp`: 时间戳
 
-#### 4. **GUI Telemetry统计（新增）**
-
-- `gui_telemetry_stats` - GUI层LLM交互统计
-  - `interactionId`: 交互唯一标识
-  - `type`: 交互类型
-  - `result`: 交互结果 (Success/Error/Cancelled)
-  - **性能指标**:
-    - `totalTime`: 总时间
-    - `toFirstToken`: 首token时间
-    - `tokensPerSecond`: 每秒token数
-  - **Token统计**:
-    - `promptTokens`: 输入token数
-    - `generatedTokens`: 生成token数
-    - `thinkingTokens`: 思考token数
-  - **其他**:
-    - `costBreakdown`: 成本分析
-    - `provider`: 模型提供商
-    - `model`: 模型名称
-
 ### 🤖 **自动补全事件**
 
 #### 1. **自动补全事件（增强版）**
@@ -100,12 +81,13 @@
     - `timestamp`: 时间戳
     - `filepath`: 文件路径
 
-#### 2. **自动补全生命周期事件（新增）**
+#### 2. **自动补全生命周期事件**
 
 - `autocomplete_triggered` - 自动补全触发事件
 
   - `completionId`: 补全请求唯一标识
   - `filepath`: 文件路径
+  - `isUntitledFile`: 是否为未命名文件
   - `position`: 光标位置 (line, character)
   - `force`: 是否强制触发
   - `timestamp`: 时间戳
@@ -113,37 +95,69 @@
 - `autocomplete_llm_request_start` - LLM请求开始事件
 
   - `completionId`: 补全请求唯一标识
+  - `filepath`: 文件路径
   - `modelProvider`: 模型提供商
   - `modelName`: 模型名称
   - `promptLength`: 提示词长度
+  - `prefixLength`: 前缀长度
   - `suffixLength`: 后缀长度
   - `multiline`: 是否多行补全
   - `timestamp`: 时间戳
+  - `timeSinceTriggered`: 从 autocomplete_triggered 事件到本事件的时间间隔 (毫秒)
+  - `timeSinceStart`: 从 LLM 请求开始到本事件的时间间隔 (毫秒)，本事件为 0
 
 - `autocomplete_llm_request_success` - LLM请求成功事件
 
   - `completionId`: 补全请求唯一标识
+  - `filepath`: 文件路径
   - `modelProvider`: 模型提供商
   - `modelName`: 模型名称
   - `completionLength`: 补全内容长度
   - `processingTime`: 处理时间 (毫秒)
+  - `totalTime`: 总处理时间 (毫秒)
+  - `toFirstToken`: 首token时间 (毫秒)
+  - `tokensPerSecond`: 每秒生成token数
+  - `promptTokens`: 输入token数
+  - `generatedTokens`: 生成token数
   - `timestamp`: 时间戳
+  - `timeSinceTriggered`: 从 autocomplete_triggered 事件到本事件的时间间隔 (毫秒)
+  - `timeSinceStart`: 从 LLM 请求开始到本事件的时间间隔 (毫秒)
 
 - `autocomplete_llm_request_failed` - LLM请求失败事件
 
   - `completionId`: 补全请求唯一标识
+  - `filepath`: 文件路径
   - `errorMessage`: 错误信息
   - `errorType`: 错误类型
   - `errorStatus`: 错误状态码
   - `timestamp`: 时间戳
+  - `timeSinceTriggered`: 从 autocomplete_triggered 事件到本事件的时间间隔 (毫秒)
+  - `timeSinceStart`: 从 LLM 请求开始到本事件的时间间隔 (毫秒)，仅在 LLM 请求已开始时记录
 
 - `autocomplete_cancelled` - 自动补全取消事件
   - `completionId`: 补全请求唯一标识
+  - `filepath`: 文件路径
+  - `isUntitledFile`: 是否为未命名文件
+  - `position`: 光标位置 (line, character)
   - `reason`: 取消原因
     - `"aborted_during_generation"`: 生成过程中被取消
     - `"error_during_processing"`: 处理过程中出错
     - `"empty_completion"`: 模型产出为空（或后处理为空）
   - `processingTime`: 处理时间 (毫秒)
+  - `timeSinceTriggered`: 从 autocomplete_triggered 事件到本事件的时间间隔 (毫秒)
+  - `timeSinceStart`: 从 LLM 请求开始到本事件的时间间隔 (毫秒)，仅在 LLM 请求已开始时记录
+  - `totalTime`: 总处理时间 (毫秒)
+  - `toFirstToken`: 首token时间 (毫秒)
+  - `tokensPerSecond`: 每秒生成token数
+  - `promptTokens`: 输入token数
+  - `generatedTokens`: 生成token数
+  - `errorMessage`: 错误信息（仅在 reason 为 "error_during_processing" 时存在）
+  - `errorType`: 错误类型（仅在 reason 为 "error_during_processing" 时存在）
+  - `errorStatus`: 错误状态码（仅在 reason 为 "error_during_processing" 时存在）
+  - `modelProvider`: 模型提供商（仅在 reason 为 "empty_completion" 时存在）
+  - `modelName`: 模型名称（仅在 reason 为 "empty_completion" 时存在）
+  - `completionLength`: 补全长度（仅在 reason 为 "empty_completion" 时存在）
+  - `cacheHit`: 是否命中缓存（仅在 reason 为 "empty_completion" 时存在）
   - `timestamp`: 时间戳
 
 ##### 前置检查与不发起请求的情况（重要）
@@ -323,6 +337,10 @@ interface AutocompleteEvent {
   uniqueId: string;
   timestamp: string;
   filepath: string;
+  profileType?: "local" | "platform" | "control-plane";
+
+  // 其他可能存在的字段
+  useFileSuffix?: boolean; // 已弃用但可能在旧数据中存在
 }
 ```
 

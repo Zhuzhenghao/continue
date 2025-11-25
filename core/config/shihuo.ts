@@ -6,22 +6,77 @@ export const shihuoConfig: ConfigYaml = {
   schema: "v1",
   models: [
     {
-      name: "Qwen3-Coder-Plus (Shihuo Default)",
-      provider: "openai",
-      model: "qwen3-coder-plus",
-      apiKey: "key-dummy",
-      apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
-      roles: ["chat", "edit"],
-      capabilities: ["tool_use"],
-    },
-    {
-      name: "Qwen3-Coder-480B-A35B",
+      name: "Qwen3-Coder-480B-Chat (Shihuo Default)",
       provider: "openai",
       model: "qwen3-coder-480b-a35b-instruct",
       apiKey: "key-dummy",
       apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
-      roles: ["chat", "edit"],
+      roles: ["chat"],
       capabilities: ["tool_use"],
+    },
+    {
+      name: "Qwen3-Coder-480B-Edit (Shihuo Default)",
+      provider: "openai",
+      model: "qwen3-coder-480b-a35b-instruct",
+      apiKey: "key-dummy",
+      apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
+      roles: ["edit"],
+      promptTemplates: {
+        edit: `你是一个代码重构助手，只能修改指定的代码片段，必须保持其余代码不变。
+
+语言：{{language}}
+
+上下文前缀（不可修改）：
+\`\`\`{{language}}
+{{prefix}}
+\`\`\`
+
+需要编辑的代码：
+\`\`\`{{language}}
+{{codeToEdit}}
+\`\`\`
+
+上下文后缀（不可修改）：
+\`\`\`{{language}}
+{{suffix}}
+\`\`\`
+
+用户指令：
+{{userInput}}
+
+要求：
+- 只对“需要编辑的代码”做必要修改，不要改 prefix / suffix。
+- 保持缩进和代码风格一致。
+- 直接输出修改后的“完整代码片段”，不要任何解释、不要额外包裹 Markdown 代码块。`,
+      },
+    },
+    {
+      name: "Qwen3-Coder-480B-Apply (Shihuo Default)",
+      provider: "openai",
+      model: "qwen3-coder-480b-a35b-instruct",
+      apiKey: "key-dummy",
+      apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
+      roles: ["apply"],
+      promptTemplates: {
+        apply: `你是一个代码修改助手，需要将“建议的新代码”正确应用到“原始代码”中。
+
+原始代码（original_code）：
+\`\`\`
+{{{ original_code }}}
+\`\`\`
+
+建议的新代码（new_code）：
+\`\`\`
+{{{ new_code }}}
+\`\`\`
+
+要求：
+- 尽量保持原始代码的结构、缩进和风格不变。
+- 只在必要的位置插入或替换为 new_code，避免无关位置的修改。
+- 不要删除或重排与本次修改无关的代码。
+- 如果 new_code 中有完整替换的部分，只替换对应片段，不要整体重写整个文件。
+- 直接输出最终的“完整文件内容”，不要任何解释性文字，不要额外包裹 Markdown 代码块。`,
+      },
     },
     {
       name: "Qwen3-Coder-30B (Shihuo Default)",
@@ -49,28 +104,6 @@ export const shihuoConfig: ConfigYaml = {
         topP: 0.2,
         frequencyPenalty: 1.2,
         presencePenalty: 0.8,
-      },
-    },
-    {
-      name: "Morph Fast Apply (Shihuo Default)",
-      provider: "openai",
-      model: "morph-v2",
-      apiKey: "sk-ZSvmi1wherq3x_hkAH5ZnHoPCLPJkI-oHM7O6lJjljU_DqBd",
-      apiBase: "https://api.morphllm.com/v1/",
-      roles: ["apply"],
-      promptTemplates: {
-        apply:
-          "<code>{{{ original_code }}}</code>\n<update>{{{ new_code }}}</update>",
-      },
-    },
-    {
-      name: "Relace Fast Apply",
-      provider: "relace",
-      model: "Fast-Apply",
-      apiKey: "rlc-XPTJvcAQFouZnNBVQ_yW6ax1Rt1CASJn8BTG-A",
-      roles: ["apply"],
-      promptTemplates: {
-        apply: "{{{ new_code }}}",
       },
     },
   ],

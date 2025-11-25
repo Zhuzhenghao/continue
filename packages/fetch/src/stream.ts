@@ -142,9 +142,21 @@ export async function* streamSse(response: Response): AsyncGenerator<any> {
   }
 
   if (buffer.length > 0) {
-    const { done, data } = parseSseLine(buffer);
-    if (!done && data) {
-      yield data;
+    try {
+      const { done, data } = parseSseLine(buffer);
+      if (!done && data) {
+        yield data;
+      }
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        e.message.startsWith("Malformed JSON sent from server:")
+      ) {
+        // Swallow malformed JSON errors for the final partial buffer chunk
+        // which can happen when the SSE stream is cancelled mid-line.
+      } else {
+        throw e;
+      }
     }
   }
 }

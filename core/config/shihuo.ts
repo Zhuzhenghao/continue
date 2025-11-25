@@ -21,6 +21,10 @@ export const shihuoConfig: ConfigYaml = {
       apiKey: "key-dummy",
       apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
       roles: ["edit"],
+      defaultCompletionOptions: {
+        temperature: 0.1,
+        topP: 0.9,
+      },
       promptTemplates: {
         edit: `你是一个代码重构助手，只能修改指定的代码片段，必须保持其余代码不变。
 
@@ -47,7 +51,8 @@ export const shihuoConfig: ConfigYaml = {
 要求：
 - 只对“需要编辑的代码”做必要修改，不要改 prefix / suffix。
 - 保持缩进和代码风格一致。
-- 直接输出修改后的“完整代码片段”，不要任何解释、不要额外包裹 Markdown 代码块。`,
+- 直接输出修改后的“完整代码片段”，不要任何解释、不要额外包裹 Markdown 代码块。
+- 如果你无法确定安全的修改方式，请原样输出“需要编辑的代码”，不要做任何修改。`,
       },
     },
     {
@@ -57,6 +62,10 @@ export const shihuoConfig: ConfigYaml = {
       apiKey: "key-dummy",
       apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
       roles: ["apply"],
+      defaultCompletionOptions: {
+        temperature: 0.1,
+        topP: 0.9,
+      },
       promptTemplates: {
         apply: `你是一个代码修改助手，需要将“建议的新代码”正确应用到“原始代码”中。
 
@@ -75,7 +84,8 @@ export const shihuoConfig: ConfigYaml = {
 - 只在必要的位置插入或替换为 new_code，避免无关位置的修改。
 - 不要删除或重排与本次修改无关的代码。
 - 如果 new_code 中有完整替换的部分，只替换对应片段，不要整体重写整个文件。
-- 直接输出最终的“完整文件内容”，不要任何解释性文字，不要额外包裹 Markdown 代码块。`,
+- 直接输出最终的“完整文件内容”，不要任何解释性文字，不要额外包裹 Markdown 代码块。
+- 如果 new_code 与 original_code 明显不兼容或会破坏现有逻辑，请优先保持 original_code 不变，而不是强行重写整个文件。`,
       },
     },
     {

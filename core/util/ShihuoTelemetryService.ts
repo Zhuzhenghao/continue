@@ -249,7 +249,8 @@ export class ShihuoTelemetryService {
     try {
       // 获取用户信息
       const userInfo = await this.getUserInfoFromSession();
-      const deviceId = this.deviceId || this.getOrCreateDeviceId();
+      // 统一使用持久化的 deviceId
+      const deviceId = this.getOrCreateDeviceId();
 
       // 统计各种事件
       const eventStats = this.calculateEventStats(events);
@@ -264,13 +265,17 @@ export class ShihuoTelemetryService {
         summary: eventStats,
       };
 
+      // 如果用户未登录（name为空），使用deviceId作为client_code
+      // deviceId是基于机器生成的唯一值，在IntelliJ等不需要登录的环境中可以使用
+      const clientCode = userInfo.name || deviceId;
+
       const params: Record<string, any> = {
         pti: {
           id: "continue_telemetry", // 使用Continue telemetry的标识
           biz: JSON.stringify(bizData),
         },
         device_id: deviceId,
-        client_code: userInfo.name,
+        client_code: clientCode,
         channel: "Continue", // 使用Continue作为渠道
         action_time: new Date().getTime(),
         APIVersion: "0.6.0",
@@ -505,6 +510,16 @@ export class ShihuoTelemetryService {
     name: string;
     dept_name: string;
   }> {
+    // In JetBrains/IntelliJ environments, don't try to get Shihuo session info
+    // as it's not supported and will cause errors. Use environment variables directly.
+    if (this.ideInfo?.ideType === "jetbrains") {
+      return {
+        name: process.env.USER_NAME || "",
+        dept_name: process.env.DEPT_NAME || "",
+      };
+    }
+
+    // For VSCode and other environments, try to get from session
     return await getShihuoUserInfo();
   }
 

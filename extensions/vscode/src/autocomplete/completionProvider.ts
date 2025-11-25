@@ -156,14 +156,10 @@ export class ContinueCompletionProvider
     //@ts-ignore
   ): ProviderResult<InlineCompletionItem[] | InlineCompletionList> {
     // Check authentication first before any other processing
-    console.log("Autocomplete: Checking authentication...");
     const isAuthenticated = await ensureShihuoAuthentication();
-    console.log("Autocomplete: Authentication result:", isAuthenticated);
     if (!isAuthenticated) {
-      console.log("Autocomplete: Authentication failed, returning null");
       return null;
     }
-    console.log("Autocomplete: Authentication passed, continuing...");
 
     // This method is triggered on every keystroke, tab keypress, and cursor move.
     // We need to determine why it was triggered:
@@ -347,6 +343,12 @@ export class ContinueCompletionProvider
       // console.debug("isJumping:", isJumping, "/ chainExists:", chainExists);
       this.prefetchQueue.peekThreeProcessed();
 
+      // If next edit is not active but a chain exists (leftover from a previous session), clear it.
+      if (!this.isNextEditActive && chainExists) {
+        await this.nextEditProvider.deleteChain();
+        chainExists = false;
+      }
+
       let resetChainInFullFileDiff = false;
       if (
         chainExists &&
@@ -360,7 +362,7 @@ export class ContinueCompletionProvider
         resetChainInFullFileDiff = true;
       }
 
-      if (isJumping && chainExists) {
+      if (this.isNextEditActive && isJumping && chainExists) {
         // Case 2: Jumping (chain exists, jump was taken)
         // console.debug("trigger reason: jumping");
 
@@ -389,7 +391,7 @@ export class ContinueCompletionProvider
             });
           }
         }
-      } else if (chainExists) {
+      } else if (this.isNextEditActive && chainExists) {
         // Case 3: Accepting next edit outcome (chain exists, jump is not taken).
         // console.debug("trigger reason: accepting");
 
@@ -448,7 +450,9 @@ export class ContinueCompletionProvider
       } else {
         // Case 1: Typing (chain does not exist).
         // if resetChainInFullFileDiff is true then we are Rebuilding next edit chain after clearing empty queues in full file diff mode
-        this.nextEditProvider.startChain();
+        if (this.isNextEditActive) {
+          this.nextEditProvider.startChain();
+        }
 
         const input: AutocompleteInput = {
           pos,
@@ -590,7 +594,11 @@ export class ContinueCompletionProvider
         }
 
         completionText = result.completionText;
-        if (result.range) {
+        // If VS Code has a selected completion item, inline completion must
+        // use the same range as the selected item, otherwise it won't be shown.
+        if (selectedCompletionInfo) {
+          range = selectedCompletionInfo.range;
+        } else if (result.range) {
           range = new vscode.Range(
             new vscode.Position(startPos.line, result.range.start),
             new vscode.Position(startPos.line, result.range.end),

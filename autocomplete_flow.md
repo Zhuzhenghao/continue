@@ -2033,3 +2033,84 @@ if (!force) {  // force=true 时跳过防抖
 5. ⚠️ **略微延迟**：需要等待固定时间后才能执行
 
 ---
+
+## 13. JetBrains 自动补全全流程
+
+JetBrains（IntelliJ 系列）插件与 VS Code 共用核心自动补全逻辑，IDE 侧负责触发、UI 呈现和 RPC 转发。关键代码位于 `extensions/intellij/src/main/kotlin/com/github/continuedev/continueintellijextension/`。
+
+### 13.1 入口：`ContinueInlineCompletionProvider`
+
+- 实现 IntelliJ `InlineCompletionProvider` 接口。
+- `isEnabled` 同时检查插件设置 `enableTabAutocomplete` 与触发事件类型，只允许 `DocumentChange` / `LookupChange` / 手动触发。
+- `getSuggestion` 为每次请求生成 `completionId`，并区分 Next Edit（智能多步编辑）与普通灰字补全两条路径。
+- `insertHandler` 在用户接受补全后调用 `CompletionService.acceptAutocomplete`，把结果回传给核心服务。
+
+### 13.2 普通灰字补全
+
+- 由 `CompletionService`（`ContinueCompletionService` 实现）与核心 Node 进程通信。
+- 构造输入（文件 URL、光标行列、剪贴板与最近编辑占位字段）后，通过 `ContinuePluginService.coreMessenger` 发送 `autocomplete/complete`。
+- 响应通过 `InlineCompletionSingleSuggestion` + `InlineCompletionGrayTextElement` 以内联灰字形式呈现。
+- 用户接受后触发 `autocomplete/accept`，带上 `completionId` 供 telemetry / 缓存更新。
+
+#### 13.2.1 不会发起 LLM 请求的典型场景
+
+1. **入口被禁用**：`isEnabled` 要求设置启用且触发事件正确，否则 Provider 根本不会被调用。
+
+```30:36:extensions/intellij/src/main/kotlin/com/github/continuedev/continueintellijextension/autocomplete/ContinueInlineCompletionProvider.kt
+val isSettingEnabled = ContinueExtensionSettings.instance.continueState.enableTabAutocomplete
+val isEventOk = event is InlineCompletionEvent.DirectCall
+        || event is InlineCompletionEvent.DocumentChange
+        || event is InlineCompletionEvent.LookupChange
+return isSettingEnabled && isEventOk
+```
+
+2. **无 Project/编辑器异常**：`request.editor.project` 为 `null` 直接返回空补全，不会继续执行。
+
+```38:44:extensions/.../ContinueInlineCompletionProvider.kt
+val project = editor.project ?: return InlineCompletionSuggestion.Empty
+```
+
+3. **Next Edit 未产出结果**：`NextEditService.handleCaseX()` 返回 `null`（链不存在、预测失败、跳转缓存缺失），Provider 立即 `return Empty`，不会 fallback 到普通灰字请求。
+4. **Next Edit 判定为非 FIM**：`NextEditUtils.checkFim` 返回 `NotFimEdit` 时改为弹窗 UI，同样 `return Empty`；此时没有新的 LLM 请求，只展示 `nextEdit/predict` 既有结果。
+
+```92:121:extensions/.../ContinueInlineCompletionProvider.kt
+is FimResult.NotFimEdit -> {
+    nextEditWindowManager.showNextEditWindow(...)
+    return InlineCompletionSuggestion.Empty
+}
+```
+
+5. **普通灰字补全未返回内容**：`CompletionService.getAutocomplete` 返回 `null`（例如核心拒绝、缓存 miss 且后端出错）时，Provider 也直接放弃，不会额外请求其他模型。
+
+```123:134:extensions/.../ContinueInlineCompletionProvider.kt
+val variant = project.service<CompletionService>().getAutocomplete(...)
+if (variant == null)
+    return InlineCompletionSuggestion.Empty
+```
+
+这些前置短路保证了只有在必要情况下才会真正发起 `autocomplete/complete` 或 Next Edit 的 LLM 请求。
+
+### 13.3 Next Edit 流程
+
+1. **能力检测**（`NextEditStatusService`）
+   - 后台校验 Continue 认证用户，要求邮箱 `@continue.dev`（当前限制）。
+   - 读取 `ProfileInfoService` 模型配置，判断是否具备 `nextEdit` 能力或匹配 Mercury Coder / Instinct 等白名单模型。
+2. **Case 分支**（`NextEditService`）
+   - **Case 1：Typing** —— 无链路时调用 `nextEdit/startChain` 并请求 `nextEdit/predict`。
+   - **Case 2：Jumping** —— 已跳转时从 `NextEditJumpManager` 缓存中拿结果（避免重复请求）。
+   - **Case 3：Chain exists, no jump** —— 遍历 `nextEdit/queue/dequeueProcessed` 返回的队列，提示跳转或结束链。
+3. **结果呈现**
+   - 利用 `NextEditUtils.checkFim` 对比旧/新片段，判断是否为纯插入（FIM）。
+   - **FIM**：以灰字 inline completion 呈现，用户可直接 Tab 接受。
+   - **非 FIM**：调用 `NextEditWindowManager.showNextEditWindow` 弹出 Next Edit UI，展示 diff、跳转按钮及接受/拒绝操作。
+4. **后续操作**
+   - 接受/拒绝通过 `nextEdit/accept`、`nextEdit/reject` 通知核心；必要时 `nextEdit/deleteChain`。
+   - `NextEditService` 维护 `displayedCompletions`，映射 `completionId` 与已展示结果，保证后续交互一致。
+
+### 13.4 与 VS Code 共享的核心逻辑
+
+- IntelliJ 侧不做上下文收集或 LLM 调用，这些都由核心 Node/TS 服务完成（同文档前述章节）。
+- 缓存命中、Transform 流式过滤、超时与 telemetry 事件路径与 VS Code 完全一致，只是入口 API 不同。
+- Next Edit RPC (`nextEdit/*`) 在两个 IDE 中共用，实现一致的链式编辑体验。
+
+综上，JetBrains 插件通过 `ContinueInlineCompletionProvider` 把 IDE 事件桥接到核心服务，并根据是否启用 Next Edit 在“灰字补全”与“多步编辑”之间切换，实现与 VS Code 一致的自动补全体验。

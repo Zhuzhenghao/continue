@@ -126,6 +126,13 @@ export class RootPathContextService {
     endPosition: Parser.Point,
     language: LanguageName,
   ): Promise<AutocompleteSnippetDeprecated[]> {
+    // TODO 检查 IDE 类型，如果是 JetBrains 则直接返回空数组
+    const ideInfo = await this.ide.getIdeInfo();
+
+    if (ideInfo.ideType === "jetbrains") {
+      return [];
+    }
+
     const definitions = await this.ide.gotoDefinition({
       filepath,
       position: {

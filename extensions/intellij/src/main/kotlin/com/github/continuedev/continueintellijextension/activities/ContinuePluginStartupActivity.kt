@@ -8,6 +8,7 @@ import com.github.continuedev.continueintellijextension.browser.ContinueBrowserS
 import com.github.continuedev.continueintellijextension.constants.getContinueGlobalPath
 import com.github.continuedev.continueintellijextension.`continue`.*
 import com.github.continuedev.continueintellijextension.listeners.ContinuePluginSelectionListener
+import com.github.continuedev.continueintellijextension.listeners.ManualTypingTrackerRegistrar
 import com.github.continuedev.continueintellijextension.services.ContinueExtensionSettings
 import com.github.continuedev.continueintellijextension.services.ContinuePluginService
 import com.github.continuedev.continueintellijextension.services.SettingsListener
@@ -91,6 +92,7 @@ class ContinuePluginStartupActivity : StartupActivity, DumbAware {
         removeShortcutFromAction(getPlatformSpecificKeyStroke("J"))
         removeShortcutFromAction(getPlatformSpecificKeyStroke("shift J"))
         removeShortcutFromAction(getPlatformSpecificKeyStroke("I"))
+        service<ManualTypingTrackerRegistrar>()
         initializePlugin(project)
     }
 

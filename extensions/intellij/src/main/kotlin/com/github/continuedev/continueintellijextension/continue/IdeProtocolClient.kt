@@ -122,6 +122,21 @@ class IdeProtocolClient(
                         respond(null)
                     }
 
+                    "getShihuoSessionInfo" -> {
+                        // IntelliJ plugin doesn't support Shihuo SSO, return null
+                        respond(null)
+                    }
+
+                    "ensureShihuoAuthentication" -> {
+                        // IntelliJ plugin doesn't require Shihuo SSO authentication, return true
+                        respond(true)
+                    }
+
+                    "logoutOfShihuo" -> {
+                        // IntelliJ plugin doesn't support Shihuo SSO, no-op
+                        respond(null)
+                    }
+
                     "getIdeInfo" -> {
                         val ideInfo = ide.getIdeInfo()
                         respond(ideInfo)

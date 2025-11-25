@@ -172,22 +172,24 @@ export function Chat() {
       index?: number,
       editorToClearOnSend?: Editor,
     ) => {
-      // Check authentication first - call VSCode extension's auth check directly
-      try {
-        const authResult = await ideMessenger.request(
-          "ensureShihuoAuthentication",
-          undefined,
-        );
+      // Check authentication first - only verify in VS Code environment
+      if (!jetbrains) {
+        try {
+          const authResult = await ideMessenger.request(
+            "ensureShihuoAuthentication",
+            undefined,
+          );
 
-        if (
-          !authResult ||
-          authResult.status !== "success" ||
-          !authResult.content
-        ) {
+          if (
+            !authResult ||
+            authResult.status !== "success" ||
+            !authResult.content
+          ) {
+            return;
+          }
+        } catch (error) {
           return;
         }
-      } catch (error) {
-        return;
       }
 
       const stateSnapshot = reduxStore.getState();
@@ -303,7 +305,7 @@ export function Chat() {
         setLocalStorage("mainTextEntryCounter", 1);
       }
     },
-    [dispatch, ideMessenger, reduxStore, setIsCreatingAgent],
+    [dispatch, ideMessenger, reduxStore, setIsCreatingAgent, jetbrains],
   );
 
   useWebviewListener(

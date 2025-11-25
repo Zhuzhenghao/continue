@@ -150,7 +150,7 @@ export class ShihuoAuthProvider implements AuthenticationProvider, Disposable {
     return `${scheme}://continue.continue/shihuo`;
   }
 
-  public static hasAttemptedRefresh: Promise<void>;
+  public static hasAttemptedRefresh: Promise<void> | undefined;
   private attemptEmitter: NodeEventEmitter;
 
   async refreshSessions() {
@@ -383,7 +383,17 @@ export async function getShihuoSessionInfo(
   silent: boolean,
 ): Promise<ControlPlaneSessionInfo | undefined> {
   try {
-    await ShihuoAuthProvider.hasAttemptedRefresh;
+    // Check if we're in a VSCode environment - authentication API is only available in VSCode
+    if (typeof authentication === "undefined" || !authentication) {
+      return undefined;
+    }
+
+    // Wait for refresh attempt if ShihuoAuthProvider has been initialized
+    // Use optional chaining to safely access hasAttemptedRefresh in case
+    // ShihuoAuthProvider is undefined (e.g., in JetBrains/IntelliJ environments)
+    if (ShihuoAuthProvider?.hasAttemptedRefresh) {
+      await ShihuoAuthProvider.hasAttemptedRefresh;
+    }
     const session = await authentication.getSession(
       AUTH_TYPE,
       [],

@@ -3,7 +3,7 @@ name: "Shihuo Agent"
 version: "1.0.0"
 schema: "v1"
 models:
-  - name: "Qwen3-Coder-Plus (Shihuo Default)"
+  - name: "Qwen3-Coder-Plus (Shihuo)"
     provider: openai
     model: qwen3-coder-plus
     apiKey: key-dummy
@@ -19,7 +19,7 @@ models:
     roles: [chat, edit]
     capabilities: [tool_use]
 
-  - name: "Qwen2.5-Coder-14B (Shihuo Default)"
+  - name: "Qwen2.5-Coder-14B (Shihuo)"
     provider: openai
     model: Qwen2.5-coder-14b
     apiKey: dummy
@@ -41,20 +41,3 @@ models:
       # experimental_includeClipboard: true
     defaultCompletionOptions:
       maxTokens: 200
-
-  - name: "Morph Fast Apply (Shihuo Default)"
-    provider: openai
-    model: morph-v2
-    apiKey: sk-ZSvmi1wherq3x_hkAH5ZnHoPCLPJkI-oHM7O6lJjljU_DqBd
-    apiBase: https://api.morphllm.com/v1/
-    roles: [apply]
-    promptTemplates:
-      apply: "<code>{{{ original_code }}}</code>\n<update>{{{ new_code }}}</update>"
-
-  - name: "Relace Fast Apply"
-    provider: relace
-    model: Fast-Apply
-    apiKey: rlc-XPTJvcAQFouZnNBVQ_yW6ax1Rt1CASJn8BTG-A
-    roles: [apply]
-    promptTemplates:
-      apply: "{{{ new_code }}}"

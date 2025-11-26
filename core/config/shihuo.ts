@@ -6,7 +6,7 @@ export const shihuoConfig: ConfigYaml = {
   schema: "v1",
   models: [
     {
-      name: "Qwen3-Coder-480B-Chat (Shihuo Default)",
+      name: "Qwen3-Coder-Chat (Shihuo)",
       provider: "openai",
       model: "qwen3-coder-480b-a35b-instruct",
       apiKey: "key-dummy",
@@ -15,11 +15,12 @@ export const shihuoConfig: ConfigYaml = {
       capabilities: ["tool_use"],
     },
     {
-      name: "Qwen3-Coder-480B-Edit (Shihuo Default)",
+      name: "Qwen3-Coder-Edit (Shihuo)",
       provider: "openai",
       model: "qwen3-coder-480b-a35b-instruct",
       apiKey: "key-dummy",
       apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
+      useLegacyCompletionsEndpoint: false,
       roles: ["edit"],
       defaultCompletionOptions: {
         temperature: 0.1,
@@ -56,11 +57,12 @@ export const shihuoConfig: ConfigYaml = {
       },
     },
     {
-      name: "Qwen3-Coder-480B-Apply (Shihuo Default)",
+      name: "Qwen3-Coder-Apply (Shihuo)",
       provider: "openai",
       model: "qwen3-coder-480b-a35b-instruct",
       apiKey: "key-dummy",
       apiBase: "https://modelx-api.shizhi-inc.com/proxy/v1",
+      useLegacyCompletionsEndpoint: false,
       roles: ["apply"],
       defaultCompletionOptions: {
         temperature: 0.1,
@@ -89,7 +91,7 @@ export const shihuoConfig: ConfigYaml = {
       },
     },
     {
-      name: "Qwen3-Coder-30B (Shihuo Default)",
+      name: "Qwen3-Coder-Autocomplete (Shihuo)",
       provider: "openai",
       model: "Qwen3-Coder-30B-A3B-Instruct-FP8",
       apiKey: "dummy",
@@ -98,7 +100,7 @@ export const shihuoConfig: ConfigYaml = {
       autocompleteOptions: {
         maxPromptTokens: 1024,
         debounceDelay: 250,
-        modelTimeout: 800,
+        modelTimeout: 500,
         maxSuffixPercentage: 0.2,
         prefixPercentage: 0.8,
         // onlyMyCode: true,

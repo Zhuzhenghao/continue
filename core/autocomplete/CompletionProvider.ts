@@ -316,7 +316,6 @@ export class CompletionProvider {
           );
 
         for await (const update of completionStream) {
-          console.log("update_demo", update);
           completion += update;
         }
 

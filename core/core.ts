@@ -438,6 +438,15 @@ export class Core {
       await this.configHandler.updateIdeSettings(msg.data);
     });
 
+    on("jetbrains/setUsername", async (msg) => {
+      const username = msg.data.username;
+      if (Telemetry.shihuoService) {
+        Telemetry.shihuoService.setJetBrainsUsername(username);
+      } else {
+        console.warn("Core: Telemetry.shihuoService is not initialized yet");
+      }
+    });
+
     on("config/refreshProfiles", async (msg) => {
       // User force reloading will retrigger colocated rules
       const codebaseRulesCache = CodebaseRulesCache.getInstance();

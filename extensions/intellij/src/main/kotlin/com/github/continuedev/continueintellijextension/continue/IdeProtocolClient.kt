@@ -123,17 +123,130 @@ class IdeProtocolClient(
                     }
 
                     "getShihuoSessionInfo" -> {
-                        // IntelliJ plugin doesn't support Shihuo SSO, return null
-                        respond(null)
+                        val params = gsonService.gson.fromJson(
+                            dataElement.toString(),
+                            GetControlPlaneSessionInfoParams::class.java
+                        )
+                        
+                        val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+                        
+                        if (params.silent) {
+                            // Silent mode: return stored session if exists
+                            val username = propertiesComponent.getValue("continue.username")
+                            if (username != null && username.isNotBlank()) {
+                                val sessionInfo = mapOf(
+                                    "AUTH_TYPE" to "shihuo-sso",
+                                    "accessToken" to "",
+                                    "account" to mapOf(
+                                        "label" to username,
+                                        "id" to username
+                                    )
+                                )
+                                respond(sessionInfo)
+                            } else {
+                                respond(null)
+                            }
+                        } else {
+                            // Non-silent mode: show dialog
+                            ApplicationManager.getApplication().invokeLater {
+                                val dialog = com.github.continuedev.continueintellijextension.dialog.UsernameDialog()
+                                if (dialog.showAndGet()) {
+                                    val username = dialog.getUsername()
+                                    if (username.isNotBlank()) {
+                                        propertiesComponent.setValue("continue.username", username)
+                                        
+                                        // Send username to core via message
+                                        continuePluginService.coreMessenger?.request(
+                                            "jetbrains/setUsername",
+                                            mapOf("username" to username),
+                                            null
+                                        ) { _ -> }
+                                        
+                                        val sessionInfo = mapOf(
+                                            "AUTH_TYPE" to "shihuo-sso",
+                                            "accessToken" to "",
+                                            "account" to mapOf(
+                                                "label" to username,
+                                                "id" to username
+                                            )
+                                        )
+                                        respond(sessionInfo)
+                                    } else {
+                                        respond(null)
+                                    }
+                                } else {
+                                    respond(null)
+                                }
+                            }
+                        }
                     }
 
                     "ensureShihuoAuthentication" -> {
-                        // IntelliJ plugin doesn't require Shihuo SSO authentication, return true
-                        respond(true)
+                        // Check if username is set, if not, show login dialog
+                        val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+                        var username = propertiesComponent.getValue("continue.username")
+                        
+                        if (username.isNullOrBlank()) {
+                            // Show login dialog
+                            ApplicationManager.getApplication().invokeLater {
+                                val dialog = com.github.continuedev.continueintellijextension.dialog.UsernameDialog()
+                                if (dialog.showAndGet()) {
+                                    val newUsername = dialog.getUsername()
+                                    if (newUsername.isNotBlank()) {
+                                        propertiesComponent.setValue("continue.username", newUsername)
+                                        
+                                        // Send username to core
+                                        continuePluginService.coreMessenger?.request(
+                                            "jetbrains/setUsername",
+                                            mapOf("username" to newUsername),
+                                            null
+                                        ) { _ -> }
+                                        
+                                        // Notify GUI about session update
+                                        val sessionInfo = mapOf(
+                                            "AUTH_TYPE" to "shihuo-sso",
+                                            "accessToken" to "",
+                                            "account" to mapOf(
+                                                "label" to newUsername,
+                                                "id" to newUsername
+                                            )
+                                        )
+                                        project.getBrowser()?.sendToWebview(
+                                            "sessionUpdate",
+                                            mapOf("sessionInfo" to sessionInfo)
+                                        )
+                                        
+                                        respond(true)
+                                    } else {
+                                        respond(false)
+                                    }
+                                } else {
+                                    respond(false)
+                                }
+                            }
+                        } else {
+                            respond(true)
+                        }
                     }
 
                     "logoutOfShihuo" -> {
-                        // IntelliJ plugin doesn't support Shihuo SSO, no-op
+                        // Clear stored username
+                        val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+                        propertiesComponent.unsetValue("continue.username")
+                        
+                        // Send empty username to core
+                        continuePluginService.coreMessenger?.request(
+                            "jetbrains/setUsername",
+                            mapOf("username" to ""),
+                            null
+                        ) { _ -> }
+                        
+                        // Notify GUI about session cleared
+                        project.getBrowser()?.sendToWebview(
+                            "sessionUpdate",
+                            mapOf("sessionInfo" to null)
+                        )
+                        
                         respond(null)
                     }
 

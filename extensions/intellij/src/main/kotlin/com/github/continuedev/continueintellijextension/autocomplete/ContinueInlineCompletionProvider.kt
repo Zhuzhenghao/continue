@@ -2,6 +2,7 @@ package com.github.continuedev.continueintellijextension.autocomplete
 
 import com.github.continuedev.continueintellijextension.FimResult
 import com.github.continuedev.continueintellijextension.Position
+import com.github.continuedev.continueintellijextension.browser.ContinueBrowserService.Companion.getBrowser
 import com.github.continuedev.continueintellijextension.nextEdit.NextEditJumpManager
 import com.github.continuedev.continueintellijextension.nextEdit.NextEditService
 import com.github.continuedev.continueintellijextension.nextEdit.NextEditStatusService
@@ -39,6 +40,52 @@ class ContinueInlineCompletionProvider : InlineCompletionProvider {
         val editor = request.editor
         val project = editor.project
             ?: return InlineCompletionSuggestion.Empty
+        
+        // Check authentication first
+        val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+        val username = propertiesComponent.getValue("continue.username")
+        if (username.isNullOrBlank()) {
+            // User not authenticated, show login dialog
+            var authenticated = false
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeAndWait {
+                val dialog = com.github.continuedev.continueintellijextension.dialog.UsernameDialog()
+                if (dialog.showAndGet()) {
+                    val newUsername = dialog.getUsername()
+                    if (newUsername.isNotBlank()) {
+                        propertiesComponent.setValue("continue.username", newUsername)
+                        
+                        val continuePluginService = project.service<com.github.continuedev.continueintellijextension.services.ContinuePluginService>()
+                        
+                        // Send username to core
+                        continuePluginService.coreMessenger?.request(
+                            "jetbrains/setUsername",
+                            mapOf("username" to newUsername),
+                            null
+                        ) { _ -> }
+                        
+                        // Notify GUI about session update
+                        val sessionInfo = mapOf(
+                            "AUTH_TYPE" to "shihuo-sso",
+                            "accessToken" to "",
+                            "account" to mapOf(
+                                "label" to newUsername,
+                                "id" to newUsername
+                            )
+                        )
+                        project.getBrowser()?.sendToWebview(
+                            "sessionUpdate",
+                            mapOf("sessionInfo" to sessionInfo)
+                        )
+                        
+                        authenticated = true
+                    }
+                }
+            }
+            if (!authenticated) {
+                return InlineCompletionSuggestion.Empty
+            }
+        }
+        
         lastUuid = uuid()
         lastProject = project
 

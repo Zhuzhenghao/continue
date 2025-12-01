@@ -27,6 +27,58 @@ class CoreMessenger(
     private val log = Logger.getInstance(CoreMessenger::class.java.simpleName)
 
     fun request(messageType: String, data: Any?, messageId: String?, onResponse: (Any?) -> Unit) {
+        // Check authentication for chat/agent features
+        if (messageType == "llm/streamChat") {
+            val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+            val username = propertiesComponent.getValue("continue.username")
+            if (username.isNullOrBlank()) {
+                // User not authenticated, show login dialog
+                com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+                    val dialog = com.github.continuedev.continueintellijextension.dialog.UsernameDialog()
+                    if (dialog.showAndGet()) {
+                        val newUsername = dialog.getUsername()
+                        if (newUsername.isNotBlank()) {
+                            propertiesComponent.setValue("continue.username", newUsername)
+                            
+                            // Send username to core
+                            request(
+                                "jetbrains/setUsername",
+                                mapOf("username" to newUsername),
+                                null
+                            ) { _ -> }
+                            
+                            // Notify GUI about session update
+                            val sessionInfo = mapOf(
+                                "AUTH_TYPE" to "shihuo-sso",
+                                "accessToken" to "",
+                                "account" to mapOf(
+                                    "label" to newUsername,
+                                    "id" to newUsername
+                                )
+                            )
+                            project.getBrowser()?.sendToWebview(
+                                "sessionUpdate",
+                                mapOf("sessionInfo" to sessionInfo)
+                            )
+                            
+                            // Retry the original request
+                            val id = messageId ?: uuid()
+                            val message = gson.toJson(mapOf("messageId" to id, "messageType" to messageType, "data" to data))
+                            responseListeners[id] = onResponse
+                            process.write(message)
+                        } else {
+                            // User cancelled or entered empty username
+                            onResponse(mapOf("error" to "Authentication required"))
+                        }
+                    } else {
+                        // User cancelled
+                        onResponse(mapOf("error" to "Authentication required"))
+                    }
+                }
+                return
+            }
+        }
+        
         val id = messageId ?: uuid()
         val message = gson.toJson(mapOf("messageId" to id, "messageType" to messageType, "data" to data))
         responseListeners[id] = onResponse

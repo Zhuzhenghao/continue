@@ -13,7 +13,6 @@ import { useAppSelector } from "../redux/hooks";
 import { isPrerelease } from "../util/index";
 import { isContinueTeamMember } from "../util/isContinueTeamMember";
 import { getLocalStorage } from "../util/localStorage";
-import ShihuoTelemetryProvider from "./ShihuoTelemetryProvider";
 
 const SAMPLE_REATE = 0.1;
 const TRACES_SAMPLE_RATE = 0.25;
@@ -125,11 +124,7 @@ const TelemetryProviders = ({ children }: PropsWithChildren) => {
     );
 
   // Wrap with all telemetry providers
-  return (
-    <PostHogProvider client={posthog}>
-      <ShihuoTelemetryProvider>{content}</ShihuoTelemetryProvider>
-    </PostHogProvider>
-  );
+  return <PostHogProvider client={posthog}>{content}</PostHogProvider>;
 };
 
 export default TelemetryProviders;

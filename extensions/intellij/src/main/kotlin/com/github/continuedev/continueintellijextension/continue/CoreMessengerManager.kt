@@ -17,6 +17,23 @@ class CoreMessengerManager(
     val coreMessenger = CoreMessenger(project, ideProtocolClient, coroutineScope, ::onUnexpectedExit)
     private var backoffIntervalSeconds = 1
     private val log = Logger.getInstance(CoreMessengerManager::class.java)
+    
+    init {
+        // Delay sending username to ensure Core is fully initialized
+        coroutineScope.launch {
+            delay(1000) // Wait 1 second for Core to initialize
+            
+            val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+            val savedUsername = propertiesComponent.getValue("continue.username")
+            if (savedUsername != null && savedUsername.isNotBlank()) {
+                coreMessenger.request(
+                    "jetbrains/setUsername",
+                    mapOf("username" to savedUsername),
+                    null
+                ) { _ -> }
+            }
+        }
+    }
 
     private fun onUnexpectedExit() {
         coroutineScope.launch {

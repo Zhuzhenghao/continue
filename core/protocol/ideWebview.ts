@@ -39,6 +39,7 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
     },
   ];
   "jetbrains/getColors": [undefined, Record<string, string | null | undefined>];
+  "jetbrains/setUsername": [{ username: string }, void];
   "vscode/openMoveRightMarkdown": [undefined, void];
   acceptDiff: [AcceptOrRejectDiffPayload, void];
   rejectDiff: [AcceptOrRejectDiffPayload, void];

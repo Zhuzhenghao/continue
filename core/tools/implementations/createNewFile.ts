@@ -2,9 +2,9 @@ import { inferResolvedUriFromRelativePath } from "../../util/ideUtils";
 import { Telemetry } from "../../util/posthog";
 
 import { ToolImpl } from ".";
+import { ContinueError, ContinueErrorReason } from "../../util/errors";
 import { getCleanUriPath, getUriPathBasename } from "../../util/uri";
 import { getStringArg } from "../parseArgs";
-import { ContinueError, ContinueErrorReason } from "../../util/errors";
 
 export const createNewFileImpl: ToolImpl = async (args, extras) => {
   const filepath = getStringArg(args, "filepath");
@@ -32,11 +32,6 @@ export const createNewFileImpl: ToolImpl = async (args, extras) => {
     // 统计创建的代码行数和字符数
     const generatedLines = contents.split("\n").length;
     const generatedCharacters = contents.length;
-    console.log("=== CreateFile Statistics ===");
-    console.log(`Created file: ${filepath}`);
-    console.log(`Generated lines: ${generatedLines}`);
-    console.log(`Generated characters: ${generatedCharacters}`);
-    console.log("=== CreateFile Statistics End ===");
 
     // 发送createfile telemetry事件
     Telemetry.capture("createfile", {

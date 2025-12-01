@@ -214,25 +214,12 @@ const getCommandsMap: (
         ),
       };
 
-      console.log("AcceptDiff event recorded:", diffMetrics);
-
-      console.log(
-        "Sending acceptDiff telemetry with diff metrics:",
-        diffMetrics,
-      );
       captureCommandTelemetry("acceptDiff", diffMetrics);
-      console.log("=== AcceptDiff Debug Info End ===");
     },
 
     "continue.rejectDiff": async (newFileUri?: string, streamId?: string) => {
-      console.log("=== RejectDiff Debug Info ===");
-      console.log("newFileUri:", newFileUri);
-      console.log("streamId:", streamId);
-
-      console.log("Sending rejectDiff telemetry");
       captureCommandTelemetry("rejectDiff");
 
-      console.log("Processing diff with action: reject");
       void processDiff(
         "reject",
         sidebar,
@@ -242,7 +229,6 @@ const getCommandsMap: (
         newFileUri,
         streamId,
       );
-      console.log("=== RejectDiff Debug Info End ===");
     },
     "continue.acceptVerticalDiffBlock": (fileUri?: string, index?: number) => {
       captureCommandTelemetry("acceptVerticalDiffBlock");

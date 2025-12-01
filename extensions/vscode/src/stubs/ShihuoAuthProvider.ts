@@ -260,7 +260,6 @@ export class ShihuoAuthProvider implements AuthenticationProvider, Disposable {
 
         // Open SSO login page
         const ssoUrl = `https://sso.shizhi-inc.com/login?target=${encodeURIComponent(this.redirectUri)}&state=${stateId}`;
-        console.log("ssoUrl", ssoUrl);
 
         await env.openExternal(Uri.parse(ssoUrl));
 
@@ -315,19 +314,9 @@ export class ShihuoAuthProvider implements AuthenticationProvider, Disposable {
         }
 
         // Exchange code for token
-        console.log("Exchanging code for token:", code);
         const tokenUrl = `https://sso.shihuo.cn/api/code2Token?code=${code}`;
-        console.log("Token exchange URL:", tokenUrl);
-
         const tokenRes = await fetch(tokenUrl);
-        console.log("Token response status:", tokenRes.status);
-        console.log(
-          "Token response headers:",
-          Object.fromEntries(tokenRes.headers.entries()),
-        );
-
         const tokenData = (await tokenRes.json()) as ApiResponse<string>;
-        console.log("Token response data:", tokenData);
 
         if (tokenData.code !== 0 || !tokenData.data) {
           console.error("Token exchange failed:", tokenData);
@@ -338,7 +327,6 @@ export class ShihuoAuthProvider implements AuthenticationProvider, Disposable {
         const token: string = tokenData.data;
         resolve(token);
       } catch (err) {
-        console.error("Shihuo SSO login failed", err);
         reject(new Error("Shihuo SSO login failed"));
       }
     };
@@ -349,29 +337,17 @@ export class ShihuoAuthProvider implements AuthenticationProvider, Disposable {
    * @returns
    */
   private async getUserInfo(token: string): Promise<UserInfo> {
-    console.log(
-      "Getting user info with token:",
-      token.substring(0, 20) + "...",
-    );
     const userUrl = "https://sso.shihuo.cn/api/checkToken?check_type=1";
-    console.log("User info URL:", userUrl);
 
     const userRes = await fetch(userUrl, {
       headers: { Authorization: token },
     });
-    console.log("User info response status:", userRes.status);
-    console.log(
-      "User info response headers:",
-      Object.fromEntries(userRes.headers.entries()),
-    );
 
     const userData = (await userRes.json()) as ApiResponse<{
       user_info: UserInfo;
     }>;
-    console.log("User info response data:", userData);
 
     if (userData.code !== 0 || !userData.data?.user_info) {
-      console.error("Get user info failed:", userData);
       throw new Error("Failed to get user info");
     }
 

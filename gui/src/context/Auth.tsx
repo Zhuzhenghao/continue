@@ -183,6 +183,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             continueSession: sessionInfo,
           }));
         }
+      } else if (sessionInfo === null) {
+        // Handle logout - clear shihuoSession
+        setMultiSession((prev) => ({
+          ...prev,
+          shihuoSession: undefined,
+        }));
       }
     },
     [],

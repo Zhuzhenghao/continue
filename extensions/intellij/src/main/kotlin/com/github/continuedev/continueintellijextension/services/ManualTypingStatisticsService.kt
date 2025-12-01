@@ -214,11 +214,15 @@ class ManualTypingStatisticsService(
                 "ideType" to "jetbrains"
             )
 
+            // Get username from PropertiesComponent instead of environment variable
+            val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+            val username = propertiesComponent.getValue("continue.username").orEmpty()
+            
             val bizData = mapOf(
                 "events" to listOf(event),
                 "event_count" to 1,
-                "name" to System.getenv("USER_NAME").orEmpty(),
-                "dept_name" to System.getenv("DEPT_NAME").orEmpty(),
+                "name" to username,
+                "dept_name" to "",
                 "timestamp" to java.time.Instant.now().toString(),
                 "summary" to mapOf(
                     "manual_typing" to mapOf(
@@ -235,7 +239,7 @@ class ManualTypingStatisticsService(
                     "biz" to com.google.gson.Gson().toJson(bizData)
                 ),
                 "device_id" to deviceId,
-                "client_code" to (System.getenv("USER_NAME") ?: deviceId),
+                "client_code" to username.ifEmpty { deviceId },
                 "channel" to "Continue",
                 "action_time" to System.currentTimeMillis(),
                 "APIVersion" to "0.6.0"

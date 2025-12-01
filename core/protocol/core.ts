@@ -350,4 +350,5 @@ export type ToCoreFromIdeOrWebviewProtocol = {
   "process/isBackgrounded": [{ toolCallId: string }, boolean];
   "process/killTerminalProcess": [{ toolCallId: string }, void];
   "mdm/setLicenseKey": [{ licenseKey: string }, boolean];
+  "jetbrains/setUsername": [{ username: string }, void];
 };

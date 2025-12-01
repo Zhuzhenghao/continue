@@ -35,6 +35,7 @@ export class ShihuoTelemetryService {
   private failedEvents: ShihuoTelemetryEvent[] = [];
   private deviceId: string | null = null;
   private ideInfo: IdeInfo | undefined;
+  private jetbrainsUsername: string | null = null; // Store username from JetBrains
 
   private constructor() {
     this.config = {
@@ -65,6 +66,99 @@ export class ShihuoTelemetryService {
   public initialize(ideInfo: IdeInfo) {
     this.ideInfo = ideInfo;
     this.deviceId = this.getOrCreateDeviceId();
+
+    // For JetBrains, load username from file if it exists
+    if (ideInfo.ideType === "jetbrains") {
+      this.jetbrainsUsername = this.loadJetBrainsUsername();
+    }
+  }
+
+  /**
+   * Load JetBrains username from file
+   */
+  private loadJetBrainsUsername(): string | null {
+    const usernamePath = this.getJetBrainsUsernamePath();
+    try {
+      if (fs.existsSync(usernamePath)) {
+        const username = fs.readFileSync(usernamePath, "utf8").trim();
+        return username || null;
+      }
+    } catch (error) {
+      console.warn("Failed to load JetBrains username:", error);
+    }
+    return null;
+  }
+
+  /**
+   * Save JetBrains username to file
+   */
+  private saveJetBrainsUsername(username: string) {
+    const usernamePath = this.getJetBrainsUsernamePath();
+    try {
+      const usernameDir = path.dirname(usernamePath);
+      if (!fs.existsSync(usernameDir)) {
+        fs.mkdirSync(usernameDir, { recursive: true });
+      }
+      fs.writeFileSync(usernamePath, username, "utf8");
+    } catch (error) {
+      console.warn("Failed to save JetBrains username:", error);
+    }
+  }
+
+  /**
+   * Get JetBrains username file path
+   */
+  private getJetBrainsUsernamePath(): string {
+    return path.join(this.getContinueDataPath(), "jetbrains-username.txt");
+  }
+
+  /**
+   * Set username from JetBrains IDE
+   */
+  public setJetBrainsUsername(username: string) {
+    this.jetbrainsUsername = username;
+    // Persist to file for future sessions
+    if (username) {
+      this.saveJetBrainsUsername(username);
+    } else {
+      // Clear username file if empty
+      this.clearJetBrainsUsername();
+    }
+  }
+
+  /**
+   * Clear JetBrains username (for logout)
+   */
+  private clearJetBrainsUsername() {
+    const usernamePath = this.getJetBrainsUsernamePath();
+    try {
+      if (fs.existsSync(usernamePath)) {
+        fs.unlinkSync(usernamePath);
+      }
+    } catch (error) {
+      console.warn("Failed to clear JetBrains username:", error);
+    }
+  }
+
+  /**
+   * Check if user is authenticated (has username)
+   */
+  public isAuthenticated(): boolean {
+    if (this.ideInfo?.ideType === "jetbrains") {
+      return !!this.jetbrainsUsername;
+    }
+    // For other IDEs, always return true (they have their own auth)
+    return true;
+  }
+
+  /**
+   * Get current username
+   */
+  public getUsername(): string | null {
+    if (this.ideInfo?.ideType === "jetbrains") {
+      return this.jetbrainsUsername;
+    }
+    return null;
   }
 
   /**
@@ -510,12 +604,11 @@ export class ShihuoTelemetryService {
     name: string;
     dept_name: string;
   }> {
-    // In JetBrains/IntelliJ environments, don't try to get Shihuo session info
-    // as it's not supported and will cause errors. Use environment variables directly.
+    // In JetBrains/IntelliJ environments, use the username set via setJetBrainsUsername
     if (this.ideInfo?.ideType === "jetbrains") {
       return {
-        name: process.env.USER_NAME || "",
-        dept_name: process.env.DEPT_NAME || "",
+        name: this.jetbrainsUsername || "",
+        dept_name: "",
       };
     }
 

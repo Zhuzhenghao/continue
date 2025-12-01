@@ -70,7 +70,7 @@ export function AccountDropdown() {
           >
             <UserCircleIconOutline className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />
             <span className="text-description hidden text-left text-xs md:block">
-              Log in with Continue
+              Login with Continue
             </span>
           </Button>
         </ToolTip>
@@ -82,7 +82,7 @@ export function AccountDropdown() {
           >
             <UserCircleIconOutline className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />
             <span className="text-description hidden text-left text-xs md:block">
-              Log in with Shihuo
+              Login with Shihuo
             </span>
           </Button>
         </ToolTip>

@@ -308,6 +308,17 @@ class ContinuePluginStartupActivity : StartupActivity, DumbAware {
 
             val coreMessengerManager = CoreMessengerManager(project, ideProtocolClient, coroutineScope)
             continuePluginService.coreMessengerManager = coreMessengerManager
+            
+            // Send stored username to core if it exists
+            val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
+            val savedUsername = propertiesComponent.getValue("continue.username")
+            if (savedUsername != null && savedUsername.isNotBlank()) {
+                continuePluginService.coreMessenger?.request(
+                    "jetbrains/setUsername",
+                    mapOf("username" to savedUsername),
+                    null
+                ) { _ -> }
+            }
         }
     }
 }

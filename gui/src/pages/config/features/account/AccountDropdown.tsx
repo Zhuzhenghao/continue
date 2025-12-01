@@ -154,7 +154,7 @@ export function AccountDropdown() {
                 >
                   <div className="flex items-center gap-2 py-0.5">
                     <UserCircleIconOutline className="h-3.5 w-3.5" />
-                    <span>Log in with Continue</span>
+                    <span>Login with Continue</span>
                   </div>
                 </ListboxOption>
               )}
@@ -166,7 +166,7 @@ export function AccountDropdown() {
                 >
                   <div className="flex items-center gap-2 py-0.5">
                     <UserCircleIconOutline className="h-3.5 w-3.5" />
-                    <span>Log in with Shihuo</span>
+                    <span>Login with Shihuo</span>
                   </div>
                 </ListboxOption>
               )}
@@ -196,7 +196,7 @@ export function AccountDropdown() {
                 <ListboxOption onClick={logoutContinue} value="logout-continue">
                   <div className="flex items-center gap-2 py-0.5">
                     <ArrowRightStartOnRectangleIcon className="h-3.5 w-3.5" />
-                    <span>Log out Continue</span>
+                    <span>Logout Continue</span>
                   </div>
                 </ListboxOption>
               )}
@@ -205,7 +205,7 @@ export function AccountDropdown() {
                 <ListboxOption onClick={logoutShihuo} value="logout-shihuo">
                   <div className="flex items-center gap-2 py-0.5">
                     <ArrowRightStartOnRectangleIcon className="h-3.5 w-3.5" />
-                    <span>Log out Shihuo</span>
+                    <span>Logout Shihuo</span>
                   </div>
                 </ListboxOption>
               )}

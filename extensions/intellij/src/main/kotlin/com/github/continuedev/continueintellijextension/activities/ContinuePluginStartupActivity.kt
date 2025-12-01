@@ -12,6 +12,7 @@ import com.github.continuedev.continueintellijextension.listeners.ManualTypingTr
 import com.github.continuedev.continueintellijextension.services.ContinueExtensionSettings
 import com.github.continuedev.continueintellijextension.services.ContinuePluginService
 import com.github.continuedev.continueintellijextension.services.SettingsListener
+import com.github.continuedev.continueintellijextension.services.ShihuoAuthService
 import com.github.continuedev.continueintellijextension.utils.toUriOrNull
 import com.intellij.openapi.actionSystem.KeyboardShortcut
 import com.intellij.openapi.application.ApplicationManager
@@ -309,16 +310,8 @@ class ContinuePluginStartupActivity : StartupActivity, DumbAware {
             val coreMessengerManager = CoreMessengerManager(project, ideProtocolClient, coroutineScope)
             continuePluginService.coreMessengerManager = coreMessengerManager
             
-            // Send stored username to core if it exists
-            val propertiesComponent = com.intellij.ide.util.PropertiesComponent.getInstance()
-            val savedUsername = propertiesComponent.getValue("continue.username")
-            if (savedUsername != null && savedUsername.isNotBlank()) {
-                continuePluginService.coreMessenger?.request(
-                    "jetbrains/setUsername",
-                    mapOf("username" to savedUsername),
-                    null
-                ) { _ -> }
-            }
+            // Send stored username to core and GUI if it exists
+            ShihuoAuthService.getInstance().notifyOnStartup(project)
         }
     }
 }

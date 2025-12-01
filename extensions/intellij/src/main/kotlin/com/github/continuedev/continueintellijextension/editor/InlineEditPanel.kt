@@ -3,11 +3,16 @@ package com.github.continuedev.continueintellijextension.editor
 import com.github.continuedev.continueintellijextension.Icons
 import com.github.continuedev.continueintellijextension.`continue`.GetTheme
 import com.github.continuedev.continueintellijextension.`continue`.ProfileInfoService
+import com.github.continuedev.continueintellijextension.dialog.UsernameDialog
 import com.github.continuedev.continueintellijextension.services.ContinueExtensionSettings
+import com.github.continuedev.continueintellijextension.services.ContinuePluginService
 import com.github.continuedev.continueintellijextension.utils.castNestedOrNull
 import com.github.continuedev.continueintellijextension.utils.getMetaKeyLabel
 import com.github.continuedev.continueintellijextension.utils.getShiftKeyLabel
+import com.github.continuedev.continueintellijextension.browser.ContinueBrowserService.Companion.getBrowser
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.colors.EditorColorsManager
@@ -137,6 +142,50 @@ fun makePanel(
 
 fun openInlineEdit(project: Project?, editor: Editor) {
     if (project == null) return
+
+    // Check authentication before allowing inline edit
+    val propertiesComponent = PropertiesComponent.getInstance()
+    val savedUsername = propertiesComponent.getValue("continue.username")
+    
+    if (savedUsername.isNullOrBlank()) {
+        // Show login dialog
+        ApplicationManager.getApplication().invokeLater {
+            val dialog = UsernameDialog()
+            if (dialog.showAndGet()) {
+                val newUsername = dialog.getUsername()
+                if (newUsername.isNotBlank()) {
+                    // Save username
+                    propertiesComponent.setValue("continue.username", newUsername)
+                    
+                    // Send to Core
+                    val continuePluginService = project.service<ContinuePluginService>()
+                    continuePluginService.coreMessenger?.request(
+                        "jetbrains/setUsername",
+                        mapOf("username" to newUsername),
+                        null
+                    ) { _ -> }
+                    
+                    // Notify GUI about session update
+                    val sessionInfo = mapOf(
+                        "AUTH_TYPE" to "shihuo-sso",
+                        "accessToken" to "",
+                        "account" to mapOf(
+                            "label" to newUsername,
+                            "id" to newUsername
+                        )
+                    )
+                    project.getBrowser()?.sendToWebview(
+                        "sessionUpdate",
+                        mapOf("sessionInfo" to sessionInfo)
+                    )
+                    
+                    // Retry opening inline edit
+                    openInlineEdit(project, editor)
+                }
+            }
+        }
+        return
+    }
 
     val editorUtils = EditorUtils(editor)
 

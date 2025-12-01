@@ -408,10 +408,10 @@ export class ConfigHandler {
     const newSession = sessionInfo;
 
     let reload = false;
+    let isLogin = false;
 
     // Only trigger config reload for Continue sessions, not Shihuo sessions
     if (sessionType === "continue") {
-      let isLogin = false;
       if (newSession) {
         if (currentSession) {
           if (

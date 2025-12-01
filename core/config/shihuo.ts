@@ -27,33 +27,29 @@ export const shihuoConfig: ConfigYaml = {
         topP: 0.9,
       },
       promptTemplates: {
-        edit: `你是一个代码重构助手，只能修改指定的代码片段，必须保持其余代码不变。
+        edit: `你是一个代码编辑引擎。只输出修改后的代码，不要说话。
 
 语言：{{language}}
 
-上下文前缀（不可修改）：
-\`\`\`{{language}}
+[上下文前缀]
 {{prefix}}
-\`\`\`
 
-需要编辑的代码：
-\`\`\`{{language}}
+[待修改代码]
 {{codeToEdit}}
-\`\`\`
 
-上下文后缀（不可修改）：
-\`\`\`{{language}}
+[上下文后缀]
 {{suffix}}
-\`\`\`
 
-用户指令：
+[用户指令]
 {{userInput}}
 
-要求：
-- 只对“需要编辑的代码”做必要修改，不要改 prefix / suffix。
-- 保持缩进和代码风格一致。
-- 直接输出修改后的“完整代码片段”，不要任何解释、不要额外包裹 Markdown 代码块。
-- 如果你无法确定安全的修改方式，请原样输出“需要编辑的代码”，不要做任何修改。`,
+=== 输出规则 (严格遵守) ===
+1. 直接输出修改后的代码文本。
+2. **禁止**使用 Markdown 代码块。
+3. **禁止**转义特殊字符（保持真实的换行和缩进）。
+4. **禁止**输出 JSON 格式。
+
+现在，请输出修改后的代码：`,
       },
     },
     {
@@ -69,25 +65,24 @@ export const shihuoConfig: ConfigYaml = {
         topP: 0.9,
       },
       promptTemplates: {
-        apply: `你是一个代码修改助手，需要将“建议的新代码”正确应用到“原始代码”中。
+        apply: `你是一个文件合并工具。将 SUGGESTED_CHANGE 应用到 ORIGINAL_FILE。
 
-原始代码（original_code）：
-\`\`\`
-{{{ original_code }}}
-\`\`\`
+<ORIGINAL_FILE>
+{{ original_code }}
+</ORIGINAL_FILE>
 
-建议的新代码（new_code）：
-\`\`\`
-{{{ new_code }}}
-\`\`\`
+<SUGGESTED_CHANGE>
+{{ new_code }}
+</SUGGESTED_CHANGE>
 
-要求：
-- 尽量保持原始代码的结构、缩进和风格不变。
-- 只在必要的位置插入或替换为 new_code，避免无关位置的修改。
-- 不要删除或重排与本次修改无关的代码。
-- 如果 new_code 中有完整替换的部分，只替换对应片段，不要整体重写整个文件。
-- 直接输出最终的“完整文件内容”，不要任何解释性文字，不要额外包裹 Markdown 代码块。
-- 如果 new_code 与 original_code 明显不兼容或会破坏现有逻辑，请优先保持 original_code 不变，而不是强行重写整个文件。`,
+=== 任务要求 ===
+1. 根据 <SUGGESTED_CHANGE> 的内容，替换 <ORIGINAL_FILE> 中对应的部分。
+2. **必须输出完整的合并后文件**，包含所有未修改的行。
+3. 严禁使用 "// ...剩余代码" 或 "// ...existing code..." 进行省略。
+4. 保持原始缩进和换行格式。
+5. **只输出代码纯文本**，不要包裹 Markdown，不要解释。
+
+如果无法合并，请原样输出 <ORIGINAL_FILE> 的内容。`,
       },
     },
     {
@@ -98,24 +93,20 @@ export const shihuoConfig: ConfigYaml = {
       apiBase: "http://coder-a100.shizhi-inc.com/v1",
       roles: ["autocomplete"],
       autocompleteOptions: {
-        maxPromptTokens: 1024,
+        maxPromptTokens: 2048,
         debounceDelay: 250,
         modelTimeout: 500,
-        maxSuffixPercentage: 0.2,
-        prefixPercentage: 0.8,
-        // onlyMyCode: true,
-        useCache: false,
+        maxSuffixPercentage: 0.3,
+        prefixPercentage: 0.7,
+        useCache: true,
         useImports: true,
-        useRecentlyEdited: false,
-        useRecentlyOpened: false,
-        experimental_includeClipboard: false,
       },
       defaultCompletionOptions: {
-        maxTokens: 250,
+        maxTokens: 128,
         temperature: 0.1,
-        topP: 0.2,
-        frequencyPenalty: 1.2,
-        presencePenalty: 0.8,
+        topP: 0.9,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
       },
     },
   ],
